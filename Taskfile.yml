@@ -49,14 +49,81 @@ tasks:
     cmds:
       - kubectl delete -f examples/
 
-  e2e:
-    desc: Run e2e tests
-    dir: e2e
+  e2e:install-deps:
+    desc: Install e2e dependencies
     cmds:
-      - task: e2e
+      - go install sigs.k8s.io/kind@latest
+      - go install sigs.k8s.io/controller-tools/cmd/controller-gen@latest
 
-  e2e-k8s:
-    desc: Run Kubernetes e2e tests only
-    dir: e2e
+  e2e:create-cluster:
+    desc: Create Kind cluster
     cmds:
-      - task: run-k8s-tests
+      - kind create cluster --config=e2e/k8s/kind-config.yaml --name=secret-santa-e2e
+      - kubectl cluster-info --context kind-secret-santa-e2e
+
+  e2e:build-image:
+    desc: Build operator Docker image
+    cmds:
+      - docker build -t secret-santa:latest .
+
+  e2e:load-image:
+    desc: Load image into Kind cluster
+    deps: [e2e:build-image]
+    cmds:
+      - kind load docker-image secret-santa:latest --name=secret-santa-e2e
+
+  e2e:generate-crd:
+    desc: Generate CRD manifests
+    cmds:
+      - controller-gen crd paths="./api/..." output:crd:artifacts:config=./config/crd
+
+  e2e:deploy-crd:
+    desc: Deploy CRDs
+    deps: [e2e:generate-crd]
+    cmds:
+      - kubectl apply -f config/crd/
+
+  e2e:deploy-rbac:
+    desc: Deploy RBAC
+    cmds:
+      - kubectl create namespace secret-santa-system --dry-run=client -o yaml | kubectl apply -f -
+      - kubectl apply -f config/rbac/
+
+  e2e:deploy-manager:
+    desc: Deploy operator manager
+    cmds:
+      - kubectl apply -f config/manager/
+
+  e2e:wait-ready:
+    desc: Wait for operator to be ready
+    cmds:
+      - kubectl wait --for=condition=available --timeout=300s deployment/secret-santa-controller -n secret-santa-system
+
+  e2e:setup:
+    desc: Setup complete Kind e2e environment
+    deps: [e2e:install-deps]
+    cmds:
+      - task: e2e:create-cluster
+      - task: e2e:load-image
+      - task: e2e:deploy-crd
+      - task: e2e:deploy-rbac
+      - task: e2e:deploy-manager
+      - task: e2e:wait-ready
+
+  e2e:test:
+    desc: Run e2e tests
+    dir: e2e/k8s
+    cmds:
+      - go test -v ./... -tags=e2e
+
+  e2e:cleanup:
+    desc: Cleanup Kind cluster
+    cmds:
+      - kind delete cluster --name=secret-santa-e2e
+
+  e2e:run:
+    desc: Run full e2e test suite
+    cmds:
+      - task: e2e:setup
+      - task: e2e:test
+      - task: e2e:cleanup

@@ -1,8 +1,9 @@
+//go:build e2e
+
 package k8s
 
 import (
 	"context"
-	"encoding/base64"
 	"testing"
 	"time"
 
@@ -13,7 +14,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
 )
 
@@ -73,6 +73,7 @@ func TestRandomPasswordGenerator(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create SecretSanta: %v", err)
 	}
+	defer dynClient.Resource(secretSantaGVR).Namespace(namespace).Delete(context.TODO(), name, metav1.DeleteOptions{})
 
 	// Wait for secret to be created
 	err = wait.PollImmediate(2*time.Second, 60*time.Second, func() (bool, error) {
@@ -96,7 +97,4 @@ func TestRandomPasswordGenerator(t *testing.T) {
 	if len(secret.Data["data"]) == 0 {
 		t.Error("Secret data is empty")
 	}
-
-	// Cleanup
-	dynClient.Resource(secretSantaGVR).Namespace(namespace).Delete(context.TODO(), name, metav1.DeleteOptions{})
 }
