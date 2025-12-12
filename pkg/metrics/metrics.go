@@ -2,7 +2,6 @@ package metrics
 
 import (
 	"sync"
-	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"sigs.k8s.io/controller-runtime/pkg/metrics"
@@ -195,7 +194,7 @@ func RecordKubernetesRequest(operation, status string) {
 
 func NewReconcileTimer(namespace, name string) *prometheus.Timer {
 	ReconcileActive.WithLabelValues(namespace, name).Set(1)
-	return ReconcileTime.WithLabelValues(namespace, name).NewTimer()
+	return prometheus.NewTimer(ReconcileTime.WithLabelValues(namespace, name))
 }
 
 func RecordReconcileComplete(namespace, name string, duration float64) {
@@ -208,7 +207,7 @@ func UpdateSecretInstances(namespace, name string, count float64) {
 }
 
 func NewGeneratorTimer(generatorType string) *prometheus.Timer {
-	return GeneratorDuration.WithLabelValues(generatorType).NewTimer()
+	return prometheus.NewTimer(GeneratorDuration.WithLabelValues(generatorType))
 }
 
 func UpdateManagedSecretsCount(count float64) {

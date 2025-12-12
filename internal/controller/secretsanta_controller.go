@@ -3,7 +3,9 @@ package controller
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"text/template"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -11,6 +13,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	secretsantav1alpha1 "github.com/logicIQ/secret-santa/api/v1alpha1"
@@ -21,10 +24,13 @@ import (
 	"github.com/logicIQ/secret-santa/pkg/generators/tls"
 	"github.com/logicIQ/secret-santa/pkg/metrics"
 	tmplpkg "github.com/logicIQ/secret-santa/pkg/template"
-	"time"
 )
 
 // SecretSantaReconciler reconciles a SecretSanta object
+const (
+	SecretSantaFinalizer = "secrets.secret-santa.io/finalizer"
+)
+
 type SecretSantaReconciler struct {
 	client.Client
 	Scheme             *runtime.Scheme
@@ -38,76 +44,111 @@ type SecretSantaReconciler struct {
 func (r *SecretSantaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := log.FromContext(ctx).WithValues("secretsanta", req.Name, "namespace", req.Namespace)
 	start := time.Now()
-	log.Info("Starting reconcile", "time", start.Format(time.RFC3339), "dryRun", r.DryRun)
+	log.V(1).Info("Starting reconcile", "dryRun", r.DryRun)
 
 	timer := metrics.NewReconcileTimer(req.Namespace, req.Name)
 	defer func() {
 		duration := time.Since(start)
 		timer.ObserveDuration()
 		metrics.RecordReconcileComplete(req.Namespace, req.Name, duration.Seconds())
-		log.Info("Completed reconcile", "duration", duration)
+		log.V(1).Info("Completed reconcile", "duration", duration)
 	}()
 
 	var secretSanta secretsantav1alpha1.SecretSanta
 	if err := r.Get(ctx, req.NamespacedName, &secretSanta); err != nil {
 		if errors.IsNotFound(err) {
-			log.V(1).Info("Resource not found, skipping", "resource", req.NamespacedName)
+			log.V(1).Info("Resource not found")
 			return ctrl.Result{}, nil
 		}
-		log.Error(err, "Failed to get SecretSanta resource")
 		return ctrl.Result{}, err
 	}
 
+	log.V(1).Info("Found SecretSanta resource", "secretType", secretSanta.Spec.SecretType, "generators", len(secretSanta.Spec.Generators))
 
-	log.V(1).Info("Found SecretSanta resource", "phase", "processing", "secretType", secretSanta.Spec.SecretType)
+	if secretSanta.ObjectMeta.DeletionTimestamp.IsZero() {
+		if !controllerutil.ContainsFinalizer(&secretSanta, SecretSantaFinalizer) {
+			controllerutil.AddFinalizer(&secretSanta, SecretSantaFinalizer)
+			return ctrl.Result{}, r.Update(ctx, &secretSanta)
+		}
+	} else {
+		return r.handleDeletion(ctx, &secretSanta)
+	}
 
 	if !r.shouldProcess(&secretSanta) {
-		log.Info("Skipping resource due to annotation/label filters", "includeAnnotations", r.IncludeAnnotations, "excludeAnnotations", r.ExcludeAnnotations, "includeLabels", r.IncludeLabels, "excludeLabels", r.ExcludeLabels)
+		log.V(1).Info("Skipping resource due to filters", "includeAnnotations", r.IncludeAnnotations, "excludeAnnotations", r.ExcludeAnnotations)
 		return ctrl.Result{}, nil
 	}
 
-	log.Info("Processing SecretSanta resource", "generators", len(secretSanta.Spec.Generators), "templateLength", len(secretSanta.Spec.Template))
+	return r.reconcileSecret(ctx, &secretSanta)
+}
 
+func (r *SecretSantaReconciler) handleDeletion(ctx context.Context, secretSanta *secretsantav1alpha1.SecretSanta) (ctrl.Result, error) {
+	log := log.FromContext(ctx)
+	log.Info("Handling SecretSanta deletion")
 
-	log.Info("Generating template data", "generatorCount", len(secretSanta.Spec.Generators))
+	controllerutil.RemoveFinalizer(secretSanta, SecretSantaFinalizer)
+	return ctrl.Result{}, r.Update(ctx, secretSanta)
+}
+
+func (r *SecretSantaReconciler) reconcileSecret(ctx context.Context, secretSanta *secretsantav1alpha1.SecretSanta) (ctrl.Result, error) {
+	log := log.FromContext(ctx)
+	log.V(1).Info("Reconciling secret", "templateLength", len(secretSanta.Spec.Template))
+
 	templateData, err := r.generateTemplateData(secretSanta.Spec.Generators)
 	if err != nil {
 		log.Error(err, "Failed to generate template data")
 		metrics.RecordReconcileError(secretSanta.Namespace, secretSanta.Name, "generator_failed")
 		return ctrl.Result{}, err
 	}
-	log.V(1).Info("Template data generated successfully", "dataKeys", getMapKeys(templateData), "generatorTypes", getGeneratorTypes(secretSanta.Spec.Generators))
-
+	log.V(1).Info("Template data generated", "generators", len(secretSanta.Spec.Generators))
 
 	if err := r.validateTemplate(secretSanta.Spec.Template); err != nil {
 		log.Error(err, "Template validation failed")
 		metrics.RecordTemplateValidationError(secretSanta.Namespace, secretSanta.Name)
-		metrics.RecordReconcileError(secretSanta.Namespace, secretSanta.Name, "template_validation")
 		if !r.DryRun {
-			r.updateStatus(ctx, &secretSanta, "TemplateFailed", "False", err.Error())
+			if updateErr := r.updateStatus(ctx, secretSanta, "TemplateFailed", "False", err.Error()); updateErr != nil {
+				log.Error(updateErr, "Failed to update status")
+			}
 		}
 		return ctrl.Result{}, err
 	}
 
-
-	tmpl, err := template.New("secret").Funcs(tmplpkg.FuncMap()).Parse(secretSanta.Spec.Template)
+	secretData, err := r.executeTemplate(secretSanta.Spec.Template, templateData)
 	if err != nil {
-		log.Error(err, "Failed to parse template")
+		log.Error(err, "Template execution failed")
 		if !r.DryRun {
-			r.updateStatus(ctx, &secretSanta, "TemplateFailed", "False", err.Error())
+			if updateErr := r.updateStatus(ctx, secretSanta, "TemplateExecutionFailed", "False", err.Error()); updateErr != nil {
+				log.Error(updateErr, "Failed to update status")
+			}
 		}
 		return ctrl.Result{}, err
+	}
+	log.V(1).Info("Template executed successfully", "dataSize", len(secretData))
+
+	if r.DryRun {
+		log.Info("DRY RUN: Template execution successful", "dataSize", len(secretData))
+		return ctrl.Result{}, nil
+	}
+
+	return r.createOrUpdateSecret(ctx, secretSanta, secretData)
+}
+
+func (r *SecretSantaReconciler) executeTemplate(tmplStr string, data map[string]interface{}) (string, error) {
+	tmpl, err := template.New("secret").Funcs(tmplpkg.FuncMap()).Parse(tmplStr)
+	if err != nil {
+		return "", fmt.Errorf("failed to parse template: %w", err)
 	}
 
 	var buf bytes.Buffer
-	if err := tmpl.Execute(&buf, templateData); err != nil {
-		log.Error(err, "Failed to execute template")
-		if !r.DryRun {
-			r.updateStatus(ctx, &secretSanta, "TemplateExecutionFailed", "False", err.Error())
-		}
-		return ctrl.Result{}, err
+	if err := tmpl.Execute(&buf, data); err != nil {
+		return "", fmt.Errorf("failed to execute template: %w", err)
 	}
 
+	return buf.String(), nil
+}
+
+func (r *SecretSantaReconciler) createOrUpdateSecret(ctx context.Context, secretSanta *secretsantav1alpha1.SecretSanta, data string) (ctrl.Result, error) {
+	log := log.FromContext(ctx)
 
 	secret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
@@ -118,43 +159,36 @@ func (r *SecretSantaReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		},
 		Type: corev1.SecretType(secretSanta.Spec.SecretType),
 		StringData: map[string]string{
-			"data": buf.String(),
+			"data": data,
 		},
 	}
 
-	if err := ctrl.SetControllerReference(&secretSanta, secret, r.Scheme); err != nil {
+	if err := ctrl.SetControllerReference(secretSanta, secret, r.Scheme); err != nil {
 		return ctrl.Result{}, err
-	}
-
-	if r.DryRun {
-		log.Info("DRY RUN: Would create secret", "secretName", secret.Name, "secretType", secret.Type, "dataSize", len(buf.String()))
-		log.V(1).Info("DRY RUN: Template execution successful", "template", secretSanta.Spec.Template, "generatedDataPreview", truncateString(buf.String(), 100))
-		return ctrl.Result{}, nil
 	}
 
 	if err := r.Client.Create(ctx, secret); err != nil {
 		if errors.IsAlreadyExists(err) {
-
-			log.Info("Secret already exists - create-once policy enforced", "secret", secret.Name, "secretType", secret.Type)
+			log.Info("Secret already exists - create-once policy enforced")
 			metrics.RecordSecretSkipped(secretSanta.Namespace, secretSanta.Name)
-			if !r.DryRun {
-				r.updateStatus(ctx, &secretSanta, "Ready", "True", "Secret already exists")
+			if updateErr := r.updateStatus(ctx, secretSanta, "Ready", "True", "Secret already exists"); updateErr != nil {
+				log.Error(updateErr, "Failed to update status")
 			}
 			return ctrl.Result{}, nil
 		}
-		if !r.DryRun {
-			r.updateStatus(ctx, &secretSanta, "SecretCreationFailed", "False", err.Error())
+		if updateErr := r.updateStatus(ctx, secretSanta, "SecretCreationFailed", "False", err.Error()); updateErr != nil {
+			log.Error(updateErr, "Failed to update status")
 		}
 		return ctrl.Result{}, err
 	}
 
-
-	if !r.DryRun {
-		metrics.RecordSecretGenerated(secretSanta.Namespace, secretSanta.Name, string(secret.Type))
-		metrics.UpdateSecretInstances(secretSanta.Namespace, secretSanta.Name, 1)
-		r.updateStatus(ctx, &secretSanta, "Ready", "True", "Secret generated successfully")
+	metrics.RecordSecretGenerated(secretSanta.Namespace, secretSanta.Name, string(secret.Type))
+	metrics.UpdateSecretInstances(secretSanta.Namespace, secretSanta.Name, 1)
+	if updateErr := r.updateStatus(ctx, secretSanta, "Ready", "True", "Secret generated successfully"); updateErr != nil {
+		log.Error(updateErr, "Failed to update status")
 	}
-	log.Info("Secret creation completed successfully", "secretName", secret.Name, "secretType", secret.Type, "dataSize", len(buf.String()))
+
+	log.Info("Secret created successfully", "secretName", secret.Name)
 	return ctrl.Result{}, nil
 }
 
@@ -162,8 +196,11 @@ func (r *SecretSantaReconciler) generateTemplateData(generatorConfigs []secretsa
 	data := make(map[string]interface{})
 
 	for _, config := range generatorConfigs {
+		if err := r.validateGeneratorConfig(config); err != nil {
+			return nil, fmt.Errorf("invalid generator config %s: %w", config.Name, err)
+		}
+
 		log := ctrl.Log.WithName("generator").WithValues("name", config.Name, "type", config.Type)
-		log.V(1).Info("Processing generator", "config", config.Config)
 		var gen generators.Generator
 
 		switch config.Type {
@@ -213,15 +250,16 @@ func (r *SecretSantaReconciler) generateTemplateData(generatorConfigs []secretsa
 			continue
 		}
 
+		log.V(1).Info("Executing generator", "config", config.Config)
 		timer := metrics.NewGeneratorTimer(config.Type)
 		result, err := gen.Generate(config.Config)
 		timer.ObserveDuration()
 		if err != nil {
 			log.Error(err, "Generator failed")
 			metrics.RecordGeneratorExecution(config.Type, "error")
-			return nil, err
+			return nil, fmt.Errorf("generator %s failed: %w", config.Name, err)
 		}
-		log.V(1).Info("Generator completed successfully")
+		log.V(1).Info("Generator completed", "resultKeys", getMapKeys(result))
 		metrics.RecordGeneratorExecution(config.Type, "success")
 		data[config.Name] = result
 	}
@@ -230,57 +268,37 @@ func (r *SecretSantaReconciler) generateTemplateData(generatorConfigs []secretsa
 }
 
 func (r *SecretSantaReconciler) validateTemplate(tmplStr string) error {
-
-	tmpl, err := template.New("validation").Funcs(tmplpkg.FuncMap()).Parse(tmplStr)
-	if err != nil {
-		return err
+	if tmplStr == "" {
+		return fmt.Errorf("template cannot be empty")
 	}
 
-
-	var buf bytes.Buffer
-	emptyData := make(map[string]interface{})
-	if err := tmpl.Execute(&buf, emptyData); err != nil {
-
-		return nil
-	}
-	return nil
+	_, err := template.New("validation").Funcs(tmplpkg.FuncMap()).Parse(tmplStr)
+	return err
 }
 
 func (r *SecretSantaReconciler) shouldProcess(secretSanta *secretsantav1alpha1.SecretSanta) bool {
-
-	if len(r.IncludeAnnotations) > 0 {
-		found := false
-		for _, include := range r.IncludeAnnotations {
-			if _, exists := secretSanta.Annotations[include]; exists {
-				found = true
-				break
-			}
-		}
-		if !found {
+	// Include annotations: ALL must be present (AND logic)
+	for _, include := range r.IncludeAnnotations {
+		if _, exists := secretSanta.Annotations[include]; !exists {
 			return false
 		}
 	}
 
+	// Exclude annotations: ANY present means skip (OR logic)
 	for _, exclude := range r.ExcludeAnnotations {
 		if _, exists := secretSanta.Annotations[exclude]; exists {
 			return false
 		}
 	}
 
-
-	if len(r.IncludeLabels) > 0 {
-		found := false
-		for _, include := range r.IncludeLabels {
-			if _, exists := secretSanta.Labels[include]; exists {
-				found = true
-				break
-			}
-		}
-		if !found {
+	// Include labels: ALL must be present (AND logic)
+	for _, include := range r.IncludeLabels {
+		if _, exists := secretSanta.Labels[include]; !exists {
 			return false
 		}
 	}
 
+	// Exclude labels: ANY present means skip (OR logic)
 	for _, exclude := range r.ExcludeLabels {
 		if _, exists := secretSanta.Labels[exclude]; exists {
 			return false
@@ -290,10 +308,19 @@ func (r *SecretSantaReconciler) shouldProcess(secretSanta *secretsantav1alpha1.S
 	return true
 }
 
-func (r *SecretSantaReconciler) updateStatus(ctx context.Context, secretSanta *secretsantav1alpha1.SecretSanta, conditionType, status, message string) {
+func (r *SecretSantaReconciler) validateGeneratorConfig(config secretsantav1alpha1.GeneratorConfig) error {
+	if config.Name == "" {
+		return fmt.Errorf("generator name cannot be empty")
+	}
+	if config.Type == "" {
+		return fmt.Errorf("generator type cannot be empty")
+	}
+	return nil
+}
+
+func (r *SecretSantaReconciler) updateStatus(ctx context.Context, secretSanta *secretsantav1alpha1.SecretSanta, conditionType, status, message string) error {
 	now := metav1.Now()
 	secretSanta.Status.LastGenerated = &now
-
 
 	conditionFound := false
 	for i, condition := range secretSanta.Status.Conditions {
@@ -316,10 +343,12 @@ func (r *SecretSantaReconciler) updateStatus(ctx context.Context, secretSanta *s
 		})
 	}
 
-	r.Status().Update(ctx, secretSanta)
+	return r.Status().Update(ctx, secretSanta)
 }
 
-func getMapKeys(m map[string]interface{}) []string {
+
+
+func getMapKeys(m map[string]string) []string {
 	keys := make([]string, 0, len(m))
 	for k := range m {
 		keys = append(keys, k)
@@ -327,27 +356,9 @@ func getMapKeys(m map[string]interface{}) []string {
 	return keys
 }
 
-func getGeneratorTypes(generators []secretsantav1alpha1.GeneratorConfig) []string {
-	types := make([]string, 0, len(generators))
-	for _, gen := range generators {
-		types = append(types, gen.Type)
-	}
-	return types
-}
-
-func truncateString(s string, maxLen int) string {
-	if len(s) <= maxLen {
-		return s
-	}
-	return s[:maxLen] + "..."
-}
-
 func (r *SecretSantaReconciler) SetupWithManager(mgr ctrl.Manager, maxConcurrentReconciles int) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&secretsantav1alpha1.SecretSanta{}).
 		Owns(&corev1.Secret{}).
-		WithOptions(ctrl.Options{
-			MaxConcurrentReconciles: maxConcurrentReconciles,
-		}).
 		Complete(r)
 }

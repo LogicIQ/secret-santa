@@ -2,10 +2,10 @@ package main
 
 import (
 	"os"
-	"strings"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"go.uber.org/zap/zapcore"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -70,13 +70,13 @@ func run(cmd *cobra.Command, args []string) {
 	// Set log level
 	switch logLevel {
 	case "debug":
-		opts.Level = zap.NewAtomicLevelAt(-1) // Debug level
+		opts.Level = zapcore.DebugLevel
 	case "info":
-		opts.Level = zap.NewAtomicLevelAt(0)  // Info level
+		opts.Level = zapcore.InfoLevel
 	case "warn":
-		opts.Level = zap.NewAtomicLevelAt(1)  // Warn level
+		opts.Level = zapcore.WarnLevel
 	case "error":
-		opts.Level = zap.NewAtomicLevelAt(2)  // Error level
+		opts.Level = zapcore.ErrorLevel
 	}
 	
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))

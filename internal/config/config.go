@@ -44,13 +44,21 @@ func Load() (*Config, error) {
 		HealthProbeBindAddress:  viper.GetString("health-probe-bind-address"),
 		LeaderElection:          viper.GetBool("leader-elect"),
 		MaxConcurrentReconciles: viper.GetInt("max-concurrent-reconciles"),
-		WatchNamespaces:         viper.GetStringSlice("watch-namespaces"),
-		IncludeAnnotations:      viper.GetStringSlice("include-annotations"),
-		ExcludeAnnotations:      viper.GetStringSlice("exclude-annotations"),
-		IncludeLabels:           viper.GetStringSlice("include-labels"),
-		ExcludeLabels:           viper.GetStringSlice("exclude-labels"),
+		WatchNamespaces:         getStringSlice("watch-namespaces"),
+		IncludeAnnotations:      getStringSlice("include-annotations"),
+		ExcludeAnnotations:      getStringSlice("exclude-annotations"),
+		IncludeLabels:           getStringSlice("include-labels"),
+		ExcludeLabels:           getStringSlice("exclude-labels"),
 		DryRun:                  viper.GetBool("dry-run"),
 		LogFormat:               viper.GetString("log-format"),
 		LogLevel:                viper.GetString("log-level"),
 	}, nil
+}
+
+func getStringSlice(key string) []string {
+	slice := viper.GetStringSlice(key)
+	if len(slice) == 1 && strings.Contains(slice[0], ",") {
+		return strings.Split(slice[0], ",")
+	}
+	return slice
 }

@@ -69,12 +69,108 @@ Kubernetes operator for sensitive data generation with Go template support
 --log-level string                 Log level: debug, info, warn, error (default "info")
 ```
 
+### Namespace Filtering
+Control which namespaces the operator watches:
+
+```bash
+# Watch all namespaces (default)
+secret-santa
+
+# Watch specific namespaces
+secret-santa --watch-namespaces default,kube-system
+secret-santa --watch-namespaces default --watch-namespaces kube-system
+
+# Environment variable
+export SECRET_SANTA_WATCH_NAMESPACES=default,kube-system
+```
+
+### Resource Filtering
+Filter SecretSanta resources by annotations and labels:
+
+#### Include Filters (AND logic)
+Only process resources that have ALL specified annotations/labels:
+
+```bash
+# Process only resources with specific annotations
+secret-santa --include-annotations secret-santa.io/managed=true
+secret-santa --include-annotations app.kubernetes.io/name,app.kubernetes.io/component
+
+# Process only resources with specific labels
+secret-santa --include-labels environment=production
+secret-santa --include-labels app=web,tier=backend
+
+# Environment variables
+export SECRET_SANTA_INCLUDE_ANNOTATIONS=secret-santa.io/managed=true
+export SECRET_SANTA_INCLUDE_LABELS=environment=production,app=web
+```
+
+#### Exclude Filters (OR logic)
+Skip resources that have ANY of the specified annotations/labels:
+
+```bash
+# Skip resources with specific annotations
+secret-santa --exclude-annotations secret-santa.io/ignore=true
+secret-santa --exclude-annotations skip.secret-santa.io/ignore,deprecated
+
+# Skip resources with specific labels
+secret-santa --exclude-labels environment=development
+secret-santa --exclude-labels skip=true,deprecated=true
+
+# Environment variables
+export SECRET_SANTA_EXCLUDE_ANNOTATIONS=secret-santa.io/ignore=true
+export SECRET_SANTA_EXCLUDE_LABELS=environment=development
+```
+
+#### Filter Examples
+
+**Production-only processing:**
+```yaml
+apiVersion: secrets.secret-santa.io/v1alpha1
+kind: SecretSanta
+metadata:
+  name: prod-db-secret
+  labels:
+    environment: production
+    app: database
+spec:
+  # ... secret configuration
+```
+
+```bash
+# Only process production resources
+secret-santa --include-labels environment=production
+```
+
+**Skip development resources:**
+```yaml
+apiVersion: secrets.secret-santa.io/v1alpha1
+kind: SecretSanta
+metadata:
+  name: dev-test-secret
+  annotations:
+    secret-santa.io/ignore: "true"
+spec:
+  # ... secret configuration
+```
+
+```bash
+# Skip resources marked for ignoring
+secret-santa --exclude-annotations secret-santa.io/ignore=true
+```
+
 ### Environment Variables
 All flags support environment variables with `SECRET_SANTA_` prefix:
 ```bash
+# Basic configuration
 SECRET_SANTA_MAX_CONCURRENT_RECONCILES=5
-SECRET_SANTA_WATCH_NAMESPACES=default,kube-system
 SECRET_SANTA_DRY_RUN=true
 SECRET_SANTA_LOG_FORMAT=console
 SECRET_SANTA_LOG_LEVEL=debug
-``` 
+
+# Namespace and resource filtering
+SECRET_SANTA_WATCH_NAMESPACES=default,kube-system,production
+SECRET_SANTA_INCLUDE_ANNOTATIONS=secret-santa.io/managed=true,app.kubernetes.io/name
+SECRET_SANTA_EXCLUDE_ANNOTATIONS=secret-santa.io/ignore=true,deprecated
+SECRET_SANTA_INCLUDE_LABELS=environment=production,tier=backend
+SECRET_SANTA_EXCLUDE_LABELS=skip=true,environment=development
+```
