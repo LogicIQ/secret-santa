@@ -1,0 +1,55 @@
+apiVersion: secrets.secret-santa.io/v1alpha1
+kind: SecretSanta
+metadata:
+  name: crypto-hmac-example
+  namespace: default
+spec:
+  template: |
+    hmac_key: {{ .HMAC.key_base64 }}
+    signature: {{ .HMAC.signature_hex }}
+    algorithm: {{ .HMAC.algorithm }}
+  generators:
+    - name: HMAC
+      type: crypto_hmac
+      config:
+        algorithm: "sha256"
+        key_size: 32
+        message: "webhook-payload"
+  secretType: "Opaque"
+---
+apiVersion: secrets.secret-santa.io/v1alpha1
+kind: SecretSanta
+metadata:
+  name: crypto-aes-example
+  namespace: default
+spec:
+  template: |
+    encryption_key: {{ .AESKey.key_base64 }}
+    key_hex: {{ .AESKey.key_hex }}
+    key_size: {{ .AESKey.key_size }}
+  generators:
+    - name: AESKey
+      type: crypto_aes_key
+      config:
+        key_size: 256
+  secretType: "Opaque"
+---
+apiVersion: secrets.secret-santa.io/v1alpha1
+kind: SecretSanta
+metadata:
+  name: crypto-keypair-example
+  namespace: default
+spec:
+  template: |
+    rsa_private_key: {{ .RSAKey.private_key_pem | b64enc }}
+    rsa_public_key: {{ .RSAKey.public_key_pem | b64enc }}
+    ed25519_private_key: {{ .ED25519Key.private_key_pem | b64enc }}
+    ed25519_public_key: {{ .ED25519Key.public_key_pem | b64enc }}
+  generators:
+    - name: RSAKey
+      type: crypto_rsa_key
+      config:
+        key_size: 2048
+    - name: ED25519Key
+      type: crypto_ed25519_key
+  secretType: "Opaque"

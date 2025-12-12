@@ -1,0 +1,62 @@
+version: '3'
+
+tasks:
+  build:
+    desc: Build the manager binary
+    cmds:
+      - go build -o bin/manager cmd/main.go
+
+  run:
+    desc: Run the manager locally
+    deps: [build]
+    cmds:
+      - ./bin/manager
+
+  test:
+    desc: Run tests
+    cmds:
+      - go test -v ./pkg/generators/...
+
+  test-coverage:
+    desc: Run tests with coverage
+    cmds:
+      - go test -v -coverprofile=coverage.out ./pkg/generators/...
+      - go tool cover -html=coverage.out -o coverage.html
+
+  manifests:
+    desc: Generate CRD manifests
+    cmds:
+      - controller-gen crd rbac:roleName=manager-role webhook paths="./..." output:crd:artifacts:config=config/crd/bases
+
+  install:
+    desc: Install CRDs into the cluster
+    deps: [manifests]
+    cmds:
+      - kubectl apply -f config/crd/bases
+
+  uninstall:
+    desc: Uninstall CRDs from the cluster
+    cmds:
+      - kubectl delete -f config/crd/bases
+
+  deploy-examples:
+    desc: Deploy examples
+    cmds:
+      - kubectl apply -f examples/
+
+  clean-examples:
+    desc: Clean up examples
+    cmds:
+      - kubectl delete -f examples/
+
+  e2e:
+    desc: Run e2e tests
+    dir: e2e
+    cmds:
+      - task: e2e
+
+  e2e-k8s:
+    desc: Run Kubernetes e2e tests only
+    dir: e2e
+    cmds:
+      - task: run-k8s-tests

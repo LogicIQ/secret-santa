@@ -1,0 +1,118 @@
+apiVersion: secrets.secret-santa.io/v1alpha1
+kind: SecretSanta
+metadata:
+  name: optimized-template-example
+  namespace: default
+spec:
+  template: |
+    # Password with computed values
+    password: {{ .Password.value }}
+    password_length: {{ len .Password.value }}
+    password_bcrypt: {{ .Password.value | bcrypt }}
+    password_sha256: {{ .Password.value | sha256 }}
+    password_entropy: {{ entropy .Password.value .Password.charset | printf "%.2f bits" }}
+    
+    # String with encodings
+    api_key: {{ .APIKey.value }}
+    api_key_b64: {{ .APIKey.value | b64enc }}
+    api_key_url_safe: {{ .APIKey.value | urlSafeB64 }}
+    api_key_length: {{ len .APIKey.value }}
+    
+    # UUID with formats
+    uuid: {{ .UUID.value }}
+    uuid_compact: {{ .UUID.value | compact }}
+    uuid_upper: {{ .UUID.value | upper }}
+    
+    # Integer with representations
+    port: {{ .Port.value }}
+    port_hex: 0x{{ .Port.value | toHex }}
+    port_binary: 0b{{ .Port.value | toBinary }}
+    port_range: {{ .Port.min }}-{{ .Port.max }}
+    
+    # Bytes with multiple formats
+    secret: {{ .Secret.value }}
+    secret_raw: {{ .Secret.value | b64dec | urlSafeB64 }}
+    secret_hash: {{ .Secret.value | b64dec | sha256 }}
+    secret_checksum: {{ .Secret.value | b64dec | crc32 }}
+    
+    # ID with validation
+    id: {{ .ID.value }}
+    id_checksum: {{ .ID.value | crc32 }}
+    {{- if .ID.prefix }}
+    id_without_prefix: {{ .ID.value | trimPrefix .ID.prefix }}
+    {{- end }}
+  generators:
+    - name: Password
+      type: random_password
+      config:
+        length: 24
+        special: true
+    - name: APIKey
+      type: random_string
+      config:
+        length: 32
+        special: false
+    - name: UUID
+      type: random_uuid
+    - name: Port
+      type: random_integer
+      config:
+        min: 8000
+        max: 9000
+    - name: Secret
+      type: random_bytes
+      config:
+        length: 32
+    - name: ID
+      type: random_id
+      config:
+        byte_length: 8
+        prefix: "app-"
+  secretType: "Opaque"
+---
+apiVersion: secrets.secret-santa.io/v1alpha1
+kind: SecretSanta
+metadata:
+  name: conditional-logic-example
+  namespace: default
+spec:
+  template: |
+    # Conditional password strength
+    password: {{ .Password.value }}
+    {{- $entropy := entropy .Password.value .Password.charset }}
+    {{- if gt $entropy 60.0 }}
+    strength: "strong"
+    {{- else if gt $entropy 40.0 }}
+    strength: "medium"  
+    {{- else }}
+    strength: "weak"
+    {{- end }}
+    entropy_bits: {{ $entropy | printf "%.1f" }}
+    
+    # Dynamic port configuration
+    port: {{ .Port.value }}
+    {{- if and (ge (.Port.value | int) 8000) (le (.Port.value | int) 8999) }}
+    environment: "development"
+    {{- else }}
+    environment: "production"
+    {{- end }}
+    
+    # UUID validation
+    uuid: {{ .UUID.value }}
+    {{- if eq .UUID.version "4" }}
+    uuid_type: "random"
+    {{- end }}
+    uuid_valid: {{ regexMatch "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$" .UUID.value }}
+  generators:
+    - name: Password
+      type: random_password
+      config:
+        length: 16
+    - name: Port
+      type: random_integer
+      config:
+        min: 7000
+        max: 9000
+    - name: UUID
+      type: random_uuid
+  secretType: "Opaque"

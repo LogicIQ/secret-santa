@@ -1,0 +1,60 @@
+package tls
+
+import (
+	"crypto/rand"
+	"crypto/x509"
+	"crypto/x509/pkix"
+	"encoding/pem"
+	"fmt"
+)
+
+// CertRequestGenerator generates certificate signing requests
+type CertRequestGenerator struct{}
+
+func (g *CertRequestGenerator) Generate(config map[string]interface{}) (map[string]string, error) {
+	// Parse private key from config
+	privateKeyPEM := getStringConfig(config, "private_key_pem", "")
+	if privateKeyPEM == "" {
+		return nil, fmt.Errorf("private_key_pem is required")
+	}
+
+	block, _ := pem.Decode([]byte(privateKeyPEM))
+	if block == nil {
+		return nil, fmt.Errorf("failed to decode private key PEM")
+	}
+
+	privateKey, err := x509.ParsePKCS8PrivateKey(block.Bytes)
+	if err != nil {
+		// Try PKCS1 for RSA keys
+		if rsaKey, rsaErr := x509.ParsePKCS1PrivateKey(block.Bytes); rsaErr == nil {
+			privateKey = rsaKey
+		} else {
+			return nil, err
+		}
+	}
+
+	// Create CSR template
+	template := x509.CertificateRequest{
+		Subject: pkix.Name{
+			CommonName: getStringConfig(config, "common_name", ""),
+		},
+		DNSNames: getStringSliceConfig(config, "dns_names"),
+	}
+
+	// Generate CSR
+	csrDER, err := x509.CreateCertificateRequest(rand.Reader, &template, privateKey)
+	if err != nil {
+		return nil, err
+	}
+
+	// Encode CSR
+	csrPEM := pem.EncodeToMemory(&pem.Block{
+		Type:  "CERTIFICATE REQUEST",
+		Bytes: csrDER,
+	})
+
+	return map[string]string{
+		"cert_request_pem": string(csrPEM),
+		"key_algorithm":    getKeyAlgorithm(privateKey),
+	}, nil
+}

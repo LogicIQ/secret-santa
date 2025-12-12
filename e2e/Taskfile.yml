@@ -1,0 +1,71 @@
+version: '3'
+
+vars:
+  CLUSTER_NAME: secret-santa-e2e
+  IMAGE_NAME: secret-santa:latest
+
+tasks:
+  install-deps:
+    desc: Install e2e test dependencies
+    cmds:
+      - go install sigs.k8s.io/controller-tools/cmd/controller-gen@latest
+      - go install sigs.k8s.io/kind@latest
+      - |
+        if ! command -v kubectl &> /dev/null; then
+          echo "kubectl not found, please install kubectl"
+          exit 1
+        fi
+
+  generate-crd:
+    desc: Generate CRD manifests
+    deps: [install-deps]
+    cmds:
+      - controller-gen crd paths="../api/..." output:crd:artifacts:config=../config/crd
+
+  build-image:
+    desc: Build Docker image
+    cmds:
+      - docker build -t {{.IMAGE_NAME}} ..
+
+  create-cluster:
+    desc: Create kind cluster
+    cmds:
+      - kind create cluster --name {{.CLUSTER_NAME}}
+      - kubectl cluster-info --context kind-{{.CLUSTER_NAME}}
+
+  load-image:
+    desc: Load image into kind cluster
+    deps: [build-image]
+    cmds:
+      - kind load docker-image {{.IMAGE_NAME}} --name {{.CLUSTER_NAME}}
+
+  deploy-operator:
+    desc: Deploy secret-santa operator
+    deps: [generate-crd]
+    cmds:
+      - kubectl apply -f ../config/crd/
+      - kubectl apply -f ../config/rbac/
+      - kubectl apply -f ../config/manager/
+
+  wait-ready:
+    desc: Wait for operator to be ready
+    cmds:
+      - kubectl wait --for=condition=available --timeout=300s deployment/secret-santa-controller -n secret-santa-system
+
+  run-k8s-tests:
+    desc: Run Kubernetes e2e tests
+    deps: [deploy-operator, load-image, wait-ready]
+    cmds:
+      - go test -v ./k8s/...
+
+  cleanup:
+    desc: Clean up kind cluster
+    cmds:
+      - kind delete cluster --name {{.CLUSTER_NAME}}
+
+  e2e:
+    desc: Run full e2e test suite
+    cmds:
+      - task: create-cluster
+      - task: run-k8s-tests
+      - task: cleanup

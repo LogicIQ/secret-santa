@@ -1,0 +1,43 @@
+apiVersion: secrets.secret-santa.io/v1alpha1
+kind: SecretSanta
+metadata:
+  name: crypto-symmetric-example
+  namespace: default
+spec:
+  template: |
+    chacha20_key: {{ .ChaCha20.key_base64 }}
+    xchacha20_key: {{ .XChaCha20.key_base64 }}
+    aes_key: {{ .AES.key_base64 }}
+  generators:
+    - name: ChaCha20
+      type: crypto_chacha20_key
+    - name: XChaCha20
+      type: crypto_xchacha20_key
+    - name: AES
+      type: crypto_aes_key
+      config:
+        key_size: 256
+  secretType: "Opaque"
+---
+apiVersion: secrets.secret-santa.io/v1alpha1
+kind: SecretSanta
+metadata:
+  name: crypto-elliptic-example
+  namespace: default
+spec:
+  template: |
+    ecdsa_private: {{ .ECDSA.private_key_pem | b64enc }}
+    ecdsa_public: {{ .ECDSA.public_key_pem | b64enc }}
+    ecdh_private: {{ .ECDH.private_key_pem | b64enc }}
+    ecdh_public: {{ .ECDH.public_key_pem | b64enc }}
+    curve_info: {{ .ECDSA.curve }}
+  generators:
+    - name: ECDSA
+      type: crypto_ecdsa_key
+      config:
+        curve: "P256"
+    - name: ECDH
+      type: crypto_ecdh_key
+      config:
+        curve: "X25519"
+  secretType: "Opaque"

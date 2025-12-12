@@ -1,0 +1,51 @@
+package crypto
+
+import (
+	"crypto/hmac"
+	"crypto/rand"
+	"crypto/sha256"
+	"crypto/sha512"
+	"encoding/base64"
+	"encoding/hex"
+	"fmt"
+	"hash"
+)
+
+// HMACGenerator generates HMAC signatures
+type HMACGenerator struct{}
+
+func (g *HMACGenerator) Generate(config map[string]interface{}) (map[string]string, error) {
+	algorithm := getStringConfig(config, "algorithm", "sha256")
+	keySize := getIntConfig(config, "key_size", 32)
+	message := getStringConfig(config, "message", "")
+
+	// Generate random key if not provided
+	key := make([]byte, keySize)
+	if _, err := rand.Read(key); err != nil {
+		return nil, err
+	}
+
+	// Select hash function
+	var hashFunc func() hash.Hash
+	switch algorithm {
+	case "sha256":
+		hashFunc = sha256.New
+	case "sha512":
+		hashFunc = sha512.New
+	default:
+		return nil, fmt.Errorf("unsupported algorithm: %s", algorithm)
+	}
+
+	// Generate HMAC
+	h := hmac.New(hashFunc, key)
+	h.Write([]byte(message))
+	signature := h.Sum(nil)
+
+	return map[string]string{
+		"key_base64":       base64.StdEncoding.EncodeToString(key),
+		"key_hex":          hex.EncodeToString(key),
+		"signature_base64": base64.StdEncoding.EncodeToString(signature),
+		"signature_hex":    hex.EncodeToString(signature),
+		"algorithm":        algorithm,
+	}, nil
+}

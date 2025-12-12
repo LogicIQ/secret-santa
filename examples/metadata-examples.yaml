@@ -1,0 +1,139 @@
+apiVersion: secrets.secret-santa.io/v1alpha1
+kind: SecretSanta
+metadata:
+  name: tls-metadata-example
+  namespace: default
+spec:
+  template: |
+    # TLS Private Key with metadata
+    private_key: {{ .TLSKey.value }}
+    key_size: {{ .TLSKey.keySize }}
+    algorithm: {{ .TLSKey.algorithm }}
+    key_id: {{ .TLSKey.keyId }}
+    format: {{ .TLSKey.format }}
+    
+    # Self-signed certificate with metadata
+    certificate: {{ .TLSCert.value }}
+    cert_fingerprint: {{ .TLSCert.fingerprint }}
+    serial_number: {{ .TLSCert.serialNumber }}
+    issuer: {{ .TLSCert.issuer }}
+    subject: {{ .TLSCert.subject }}
+    valid_from: {{ .TLSCert.validFrom }}
+    valid_to: {{ .TLSCert.validTo }}
+  generators:
+    - name: TLSKey
+      type: tls_private_key
+      config:
+        algorithm: "RSA"
+        rsa_bits: 2048
+    - name: TLSCert
+      type: tls_self_signed_cert
+      config:
+        key_algorithm: "RSA"
+        rsa_bits: 2048
+        subject:
+          common_name: "example.com"
+        validity_period_hours: 8760
+  secretType: "kubernetes.io/tls"
+---
+apiVersion: secrets.secret-santa.io/v1alpha1
+kind: SecretSanta
+metadata:
+  name: crypto-metadata-example
+  namespace: default
+spec:
+  template: |
+    # AES Key with metadata
+    aes_key: {{ .AESKey.value }}
+    aes_key_size: {{ .AESKey.keySize }}
+    aes_algorithm: {{ .AESKey.algorithm }}
+    aes_key_id: {{ .AESKey.keyId }}
+    
+    # RSA Key with metadata
+    rsa_key: {{ .RSAKey.value }}
+    rsa_key_size: {{ .RSAKey.keySize }}
+    rsa_format: {{ .RSAKey.format }}
+    
+    # HMAC Key with metadata
+    hmac_key: {{ .HMACKey.value }}
+    hmac_algorithm: {{ .HMACKey.algorithm }}
+    hmac_key_id: {{ .HMACKey.keyId }}
+  generators:
+    - name: AESKey
+      type: crypto_aes_key
+      config:
+        key_size: 256
+    - name: RSAKey
+      type: crypto_rsa_key
+      config:
+        key_size: 2048
+    - name: HMACKey
+      type: crypto_hmac
+      config:
+        algorithm: "SHA256"
+        key_size: 32
+  secretType: "Opaque"
+---
+apiVersion: secrets.secret-santa.io/v1alpha1
+kind: SecretSanta
+metadata:
+  name: time-metadata-example
+  namespace: default
+spec:
+  template: |
+    # Static time with multiple formats
+    timestamp: {{ .Timestamp.value }}
+    timezone: {{ .Timestamp.timezone }}
+    epoch: {{ .Timestamp.epoch }}
+    iso8601: {{ .Timestamp.iso8601 }}
+    formatted: {{ .Timestamp.formatted }}
+    generated_at: {{ .Timestamp.generatedAt }}
+  generators:
+    - name: Timestamp
+      type: time_static
+      config:
+        timezone: "UTC"
+        format: "2006-01-02 15:04:05"
+  secretType: "Opaque"
+---
+apiVersion: secrets.secret-santa.io/v1alpha1
+kind: SecretSanta
+metadata:
+  name: conditional-template-example
+  namespace: default
+spec:
+  template: |
+    # Conditional logic based on metadata
+    password: {{ .Password.value }}
+    {{- if gt .Password.entropy 50.0 }}
+    strength_note: "High entropy password ({{ .Password.entropy }} bits)"
+    {{- else }}
+    strength_note: "Consider increasing length for better security"
+    {{- end }}
+    
+    # Format port based on range
+    port: {{ .Port.value }}
+    {{- if and (ge .Port.value 8000) (le .Port.value 8999) }}
+    service_type: "development"
+    {{- else }}
+    service_type: "production"
+    {{- end }}
+    
+    # UUID format selection
+    {{- if .UUID.version }}
+    uuid_standard: {{ .UUID.value }}
+    uuid_compact: {{ .UUID.compact }}
+    {{- end }}
+  generators:
+    - name: Password
+      type: random_password
+      config:
+        length: 16
+    - name: Port
+      type: random_integer
+      config:
+        min: 8000
+        max: 9000
+    - name: UUID
+      type: random_uuid
+  secretType: "Opaque"

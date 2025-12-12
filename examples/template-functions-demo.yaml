@@ -1,0 +1,92 @@
+apiVersion: secrets.secret-santa.io/v1alpha1
+kind: SecretSanta
+metadata:
+  name: template-functions-demo
+  namespace: default
+spec:
+  template: |
+    # Password with template functions
+    password: {{ .Password.value }}
+    password_bcrypt: {{ .Password.value | bcrypt }}
+    password_sha256: {{ .Password.value | sha256 }}
+    password_length: {{ len .Password.value }}
+    password_entropy: {{ entropy .Password.value .Password.charset | printf "%.2f" }}
+    password_crc32: {{ .Password.value | crc32 }}
+    
+    # String with encodings
+    api_key: {{ .APIKey.value }}
+    api_key_b64: {{ .APIKey.value | b64enc }}
+    api_key_url_safe: {{ .APIKey.value | urlSafeB64 }}
+    api_key_upper: {{ .APIKey.value | upper }}
+    api_key_length: {{ len .APIKey.value }}
+    
+    # UUID with transformations
+    uuid: {{ .UUID.value }}
+    uuid_compact: {{ .UUID.value | compact }}
+    uuid_upper: {{ .UUID.value | upper }}
+    uuid_version: {{ .UUID.version }}
+    
+    # Integer with representations
+    port: {{ .Port.value }}
+    port_hex: {{ .Port.value | toHex }}
+    port_binary: {{ .Port.value | toBinary }}
+    port_padded: {{ .Port.value | printf "%05d" }}
+    
+    # Bytes with multiple formats
+    secret_bytes: {{ .SecretBytes.value }}
+    secret_bytes_decoded: {{ .SecretBytes.value | b64dec | urlSafeB64 }}
+    secret_bytes_hash: {{ .SecretBytes.value | b64dec | sha256 }}
+    secret_bytes_checksum: {{ .SecretBytes.value | b64dec | crc32 }}
+    
+    # ID with validation
+    random_id: {{ .RandomID.value }}
+    random_id_checksum: {{ .RandomID.value | crc32 }}
+    {{- if .RandomID.prefix }}
+    id_without_prefix: {{ .RandomID.value | trimPrefix .RandomID.prefix }}
+    {{- end }}
+    
+    # Conditional logic based on computed values
+    {{- $entropy := entropy .Password.value .Password.charset }}
+    {{- if gt $entropy 60.0 }}
+    security_level: "high"
+    {{- else if gt $entropy 40.0 }}
+    security_level: "medium"
+    {{- else }}
+    security_level: "low"
+    {{- end }}
+    
+    # Dynamic configuration
+    {{- $portNum := .Port.value | int }}
+    {{- if and (ge $portNum 8000) (le $portNum 8999) }}
+    environment: "development"
+    {{- else }}
+    environment: "production"
+    {{- end }}
+  generators:
+    - name: Password
+      type: random_password
+      config:
+        length: 24
+        special: true
+    - name: APIKey
+      type: random_string
+      config:
+        length: 32
+        special: false
+    - name: UUID
+      type: random_uuid
+    - name: Port
+      type: random_integer
+      config:
+        min: 7000
+        max: 9000
+    - name: SecretBytes
+      type: random_bytes
+      config:
+        length: 32
+    - name: RandomID
+      type: random_id
+      config:
+        byte_length: 8
+        prefix: "app-"
+  secretType: "Opaque"

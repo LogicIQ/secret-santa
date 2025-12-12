@@ -1,0 +1,42 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: secret-santa-system
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: secret-santa-controller
+  namespace: secret-santa-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: secret-santa-controller
+  template:
+    metadata:
+      labels:
+        app: secret-santa-controller
+    spec:
+      serviceAccountName: secret-santa-controller
+      containers:
+      - name: manager
+        image: secret-santa:latest
+        imagePullPolicy: Never
+        ports:
+        - containerPort: 8080
+          name: metrics
+        - containerPort: 8081
+          name: health
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8081
+          initialDelaySeconds: 15
+          periodSeconds: 20
+        readinessProbe:
+          httpGet:
+            path: /readyz
+            port: 8081
+          initialDelaySeconds: 5
+          periodSeconds: 10

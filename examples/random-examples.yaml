@@ -1,0 +1,99 @@
+apiVersion: secrets.secret-santa.io/v1alpha1
+kind: SecretSanta
+metadata:
+  name: random-password-example
+  namespace: default
+spec:
+  template: |
+    password: {{ .Password.value }}
+    bcrypt_hash: {{ .Password.value | bcrypt }}
+    length: {{ len .Password.value }}
+    entropy: {{ entropy .Password.value .Password.charset | printf "%.2f" }}
+    charset: {{ .Password.charset }}
+    sha256: {{ .Password.value | sha256 }}
+    generated_at: {{ .Password.generatedAt }}
+  generators:
+    - name: Password
+      type: random_password
+      config:
+        length: 32
+        special: true
+        override_special: "!@#$%"
+  secretType: "Opaque"
+---
+apiVersion: secrets.secret-santa.io/v1alpha1
+kind: SecretSanta
+metadata:
+  name: random-string-example
+  namespace: default
+spec:
+  template: |
+    api_key: {{ .APIKey.value }}
+    api_key_base64: {{ .APIKey.value | b64enc }}
+    api_key_url_safe: {{ .APIKey.value | urlSafeB64 }}
+    session_id: {{ .SessionID.value }}
+    session_charset: {{ .SessionID.charset }}
+    session_length: {{ len .SessionID.value }}
+  generators:
+    - name: APIKey
+      type: random_string
+      config:
+        length: 64
+        special: false
+    - name: SessionID
+      type: random_string
+      config:
+        length: 16
+        upper: false
+        special: false
+  secretType: "Opaque"
+---
+apiVersion: secrets.secret-santa.io/v1alpha1
+kind: SecretSanta
+metadata:
+  name: random-mixed-example
+  namespace: default
+spec:
+  template: |
+    # UUID with metadata
+    uuid: {{ .UUID.value }}
+    uuid_compact: {{ .UUID.value | compact }}
+    uuid_version: {{ .UUID.version }}
+    uuid_variant: {{ .UUID.variant }}
+    
+    # Integer with representations
+    port: {{ .Port.value }}
+    port_hex: {{ .Port.value | toHex }}
+    port_binary: {{ .Port.value | toBinary }}
+    port_min: {{ .Port.min }}
+    port_max: {{ .Port.max }}
+    
+    # Bytes with encodings
+    secret_bytes: {{ .SecretBytes.value | b64enc }}
+    secret_bytes_url_safe: {{ .SecretBytes.value | urlSafeB64 }}
+    secret_bytes_sha256: {{ .SecretBytes.value | sha256 }}
+    secret_bytes_length: {{ len .SecretBytes.value }}
+    
+    # ID with checksum
+    random_id: {{ .RandomID.value }}
+    random_id_hex: {{ .RandomID.value | toHex }}
+    random_id_prefix: {{ .RandomID.prefix }}
+    random_id_checksum: {{ .RandomID.value | crc32 }}
+  generators:
+    - name: UUID
+      type: random_uuid
+    - name: Port
+      type: random_integer
+      config:
+        min: 8000
+        max: 9000
+    - name: SecretBytes
+      type: random_bytes
+      config:
+        length: 32
+    - name: RandomID
+      type: random_id
+      config:
+        byte_length: 8
+        prefix: "app-"
+  secretType: "Opaque"
