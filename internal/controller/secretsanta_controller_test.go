@@ -396,8 +396,8 @@ func TestSecretSantaReconciler_generateTemplateData(t *testing.T) {
 				{
 					Name: "password",
 					Type: "random_password",
-					Config: map[string]interface{}{
-						"length": 12,
+					Config: &runtime.RawExtension{Raw: []byte(`{
+						"length": 12}`),
 					},
 				},
 			},
@@ -409,8 +409,8 @@ func TestSecretSantaReconciler_generateTemplateData(t *testing.T) {
 				{
 					Name: "password",
 					Type: "random_password",
-					Config: map[string]interface{}{
-						"length": 12,
+					Config: &runtime.RawExtension{Raw: []byte(`{
+						"length": 12}`),
 					},
 				},
 				{
@@ -492,8 +492,8 @@ func TestSecretSantaReconciler_Reconcile(t *testing.T) {
 						{
 							Name: "password",
 							Type: "random_password",
-							Config: map[string]interface{}{
-								"length": 12,
+							Config: &runtime.RawExtension{Raw: []byte(`{
+								"length": 12}`),
 							},
 						},
 					},
@@ -517,8 +517,8 @@ func TestSecretSantaReconciler_Reconcile(t *testing.T) {
 						{
 							Name: "password",
 							Type: "random_password",
-							Config: map[string]interface{}{
-								"length": 12,
+							Config: &runtime.RawExtension{Raw: []byte(`{
+								"length": 12}`),
 							},
 						},
 					},
@@ -675,7 +675,7 @@ func TestSecretSantaReconciler_createOrUpdateSecret(t *testing.T) {
 	}
 
 	ctx := log.IntoContext(context.Background(), log.Log)
-	result, err := r.createOrUpdateSecret(ctx, secretSanta, "test-data")
+	result, err := r.createOrUpdateSecret(ctx, secretSanta, "test-data", "test-secret")
 
 	require.NoError(t, err)
 	assert.Equal(t, ctrl.Result{}, result)
