@@ -24,7 +24,6 @@ import (
 	"github.com/logicIQ/secret-santa/pkg/generators/random"
 	timegens "github.com/logicIQ/secret-santa/pkg/generators/time"
 	"github.com/logicIQ/secret-santa/pkg/generators/tls"
-	"github.com/logicIQ/secret-santa/pkg/metrics"
 	tmplpkg "github.com/logicIQ/secret-santa/pkg/template"
 )
 
@@ -48,11 +47,11 @@ func (r *SecretSantaReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	start := time.Now()
 	log.V(1).Info("Starting reconcile", "dryRun", r.DryRun)
 
-	timer := metrics.NewReconcileTimer(req.Namespace, req.Name)
+	timer := NewReconcileTimer(req.Name, req.Namespace)
 	defer func() {
 		duration := time.Since(start)
 		timer.ObserveDuration()
-		metrics.RecordReconcileComplete(req.Namespace, req.Name, duration.Seconds())
+		RecordReconcileComplete(req.Name, req.Namespace, duration.Seconds())
 		log.V(1).Info("Completed reconcile", "duration", duration)
 	}()
 
@@ -115,7 +114,7 @@ func (r *SecretSantaReconciler) reconcileSecret(ctx context.Context, secretSanta
 	err := r.Get(ctx, client.ObjectKey{Name: secretName, Namespace: secretSanta.Namespace}, &existingSecret)
 	if err == nil {
 		log.Info("Secret already exists - create-once policy enforced")
-		metrics.RecordSecretSkipped(secretSanta.Namespace, secretSanta.Name)
+		RecordSecretSkipped(secretSanta.Name, secretSanta.Namespace)
 		if updateErr := r.updateStatus(ctx, secretSanta, "Ready", "True", "Secret already exists"); updateErr != nil {
 			log.Error(updateErr, "Failed to update status")
 		}
@@ -127,14 +126,14 @@ func (r *SecretSantaReconciler) reconcileSecret(ctx context.Context, secretSanta
 	templateData, err := r.generateTemplateData(secretSanta.Spec.Generators)
 	if err != nil {
 		log.Error(err, "Failed to generate template data")
-		metrics.RecordReconcileError(secretSanta.Namespace, secretSanta.Name, "generator_failed")
+		RecordReconcileError(secretSanta.Name, secretSanta.Namespace, "generator_failed")
 		return ctrl.Result{}, err
 	}
 	log.V(1).Info("Template data generated", "generators", len(secretSanta.Spec.Generators))
 
 	if err := r.validateTemplate(secretSanta.Spec.Template); err != nil {
 		log.Error(err, "Template validation failed")
-		metrics.RecordTemplateValidationError(secretSanta.Namespace, secretSanta.Name)
+		RecordTemplateValidationError(secretSanta.Name, secretSanta.Namespace)
 		if !r.DryRun {
 			if updateErr := r.updateStatus(ctx, secretSanta, "TemplateFailed", "False", err.Error()); updateErr != nil {
 				log.Error(updateErr, "Failed to update status")
@@ -218,8 +217,8 @@ func (r *SecretSantaReconciler) createOrUpdateSecret(ctx context.Context, secret
 		return ctrl.Result{}, err
 	}
 
-	metrics.RecordSecretGenerated(secretSanta.Namespace, secretSanta.Name, string(secret.Type))
-	metrics.UpdateSecretInstances(secretSanta.Namespace, secretSanta.Name, 1)
+	RecordSecretGenerated(secretSanta.Name, secretSanta.Namespace, string(secret.Type))
+	UpdateSecretInstances(secretSanta.Name, secretSanta.Namespace, 1)
 	if updateErr := r.updateStatus(ctx, secretSanta, "Ready", "True", "Secret generated successfully"); updateErr != nil {
 		log.Error(updateErr, "Failed to update status")
 	}
@@ -298,16 +297,16 @@ func (r *SecretSantaReconciler) generateTemplateData(generatorConfigs []secretsa
 		}
 
 		log.V(1).Info("Executing generator", "config", configMap)
-		timer := metrics.NewGeneratorTimer(config.Type)
+		timer := NewGeneratorTimer(config.Type)
 		result, err := gen.Generate(configMap)
 		timer.ObserveDuration()
 		if err != nil {
 			log.Error(err, "Generator failed")
-			metrics.RecordGeneratorExecution(config.Type, "error")
+			RecordGeneratorExecution(config.Type, "error")
 			return nil, fmt.Errorf("generator %s failed: %w", config.Name, err)
 		}
 		log.V(1).Info("Generator completed", "resultKeys", getMapKeys(result))
-		metrics.RecordGeneratorExecution(config.Type, "success")
+		RecordGeneratorExecution(config.Type, "success")
 		data[config.Name] = result
 	}
 
