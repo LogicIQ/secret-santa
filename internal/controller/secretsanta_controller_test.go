@@ -2,10 +2,8 @@ package controller
 
 import (
 	"context"
-	"os"
 	"testing"
 
-	"github.com/prometheus/client_golang/prometheus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
@@ -20,6 +18,19 @@ import (
 
 	secretsantav1alpha1 "github.com/logicIQ/secret-santa/api/v1alpha1"
 )
+
+// Stub metrics functions for testing
+type Timer struct{}
+func (s *Timer) ObserveDuration() {}
+func NewReconcileTimer(name, namespace string) *Timer { return &Timer{} }
+func RecordReconcileComplete(name, namespace string, duration float64) {}
+func RecordSecretSkipped(name, namespace string) {}
+func RecordReconcileError(name, namespace, reason string) {}
+func RecordTemplateValidationError(name, namespace string) {}
+func RecordSecretGenerated(name, namespace, secretType string) {}
+func UpdateSecretInstances(name, namespace string, count float64) {}
+func NewGeneratorTimer(generatorType string) *Timer { return &Timer{} }
+func RecordGeneratorExecution(generatorType, status string) {}
 
 func TestSecretSantaReconciler_executeTemplate(t *testing.T) {
 	tests := []struct {
