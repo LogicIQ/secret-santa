@@ -68,7 +68,7 @@ func run(cmd *cobra.Command, args []string) {
 	opts := zap.Options{
 		Development: logFormat == "console",
 	}
-	
+
 	// Set log level
 	switch logLevel {
 	case "debug":
@@ -80,7 +80,7 @@ func run(cmd *cobra.Command, args []string) {
 	case "error":
 		opts.Level = zapcore.ErrorLevel
 	}
-	
+
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
 
 	setupLog.Info("Secret Santa starting", "version", version, "gitHash", gitHash)
@@ -117,13 +117,13 @@ func run(cmd *cobra.Command, args []string) {
 	}
 
 	if err = (&controller.SecretSantaReconciler{
-		Client:              mgr.GetClient(),
-		Scheme:              mgr.GetScheme(),
-		IncludeAnnotations:  cfg.IncludeAnnotations,
-		ExcludeAnnotations:  cfg.ExcludeAnnotations,
-		IncludeLabels:       cfg.IncludeLabels,
-		ExcludeLabels:       cfg.ExcludeLabels,
-		DryRun:              cfg.DryRun,
+		Client:             mgr.GetClient(),
+		Scheme:             mgr.GetScheme(),
+		IncludeAnnotations: cfg.IncludeAnnotations,
+		ExcludeAnnotations: cfg.ExcludeAnnotations,
+		IncludeLabels:      cfg.IncludeLabels,
+		ExcludeLabels:      cfg.ExcludeLabels,
+		DryRun:             cfg.DryRun,
 	}).SetupWithManager(mgr, cfg.MaxConcurrentReconciles); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "SecretSanta")
 		os.Exit(1)

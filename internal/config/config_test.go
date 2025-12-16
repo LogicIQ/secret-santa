@@ -12,10 +12,10 @@ import (
 func TestLoad_Defaults(t *testing.T) {
 	// Reset viper state
 	viper.Reset()
-	
+
 	cfg, err := Load()
 	require.NoError(t, err)
-	
+
 	assert.Equal(t, ":8080", cfg.MetricsBindAddress)
 	assert.Equal(t, ":8081", cfg.HealthProbeBindAddress)
 	assert.False(t, cfg.LeaderElection)
@@ -33,38 +33,38 @@ func TestLoad_Defaults(t *testing.T) {
 func TestLoad_EnvironmentVariables(t *testing.T) {
 	// Reset viper state
 	viper.Reset()
-	
+
 	// Set environment variables
 	envVars := map[string]string{
-		"SECRET_SANTA_METRICS_BIND_ADDRESS":       ":9090",
-		"SECRET_SANTA_HEALTH_PROBE_BIND_ADDRESS":  ":9091",
-		"SECRET_SANTA_LEADER_ELECT":               "true",
-		"SECRET_SANTA_MAX_CONCURRENT_RECONCILES":  "5",
-		"SECRET_SANTA_WATCH_NAMESPACES":           "default,kube-system",
-		"SECRET_SANTA_INCLUDE_ANNOTATIONS":        "app.kubernetes.io/name",
-		"SECRET_SANTA_EXCLUDE_ANNOTATIONS":        "skip.secret-santa.io/ignore",
-		"SECRET_SANTA_INCLUDE_LABELS":             "environment=prod",
-		"SECRET_SANTA_EXCLUDE_LABELS":             "skip=true",
-		"SECRET_SANTA_DRY_RUN":                    "true",
-		"SECRET_SANTA_LOG_FORMAT":                 "console",
-		"SECRET_SANTA_LOG_LEVEL":                  "debug",
+		"SECRET_SANTA_METRICS_BIND_ADDRESS":      ":9090",
+		"SECRET_SANTA_HEALTH_PROBE_BIND_ADDRESS": ":9091",
+		"SECRET_SANTA_LEADER_ELECT":              "true",
+		"SECRET_SANTA_MAX_CONCURRENT_RECONCILES": "5",
+		"SECRET_SANTA_WATCH_NAMESPACES":          "default,kube-system",
+		"SECRET_SANTA_INCLUDE_ANNOTATIONS":       "app.kubernetes.io/name",
+		"SECRET_SANTA_EXCLUDE_ANNOTATIONS":       "skip.secret-santa.io/ignore",
+		"SECRET_SANTA_INCLUDE_LABELS":            "environment=prod",
+		"SECRET_SANTA_EXCLUDE_LABELS":            "skip=true",
+		"SECRET_SANTA_DRY_RUN":                   "true",
+		"SECRET_SANTA_LOG_FORMAT":                "console",
+		"SECRET_SANTA_LOG_LEVEL":                 "debug",
 	}
-	
+
 	// Set environment variables
 	for key, value := range envVars {
 		os.Setenv(key, value)
 	}
-	
+
 	// Clean up after test
 	defer func() {
 		for key := range envVars {
 			os.Unsetenv(key)
 		}
 	}()
-	
+
 	cfg, err := Load()
 	require.NoError(t, err)
-	
+
 	assert.Equal(t, ":9090", cfg.MetricsBindAddress)
 	assert.Equal(t, ":9091", cfg.HealthProbeBindAddress)
 	assert.True(t, cfg.LeaderElection)
@@ -82,7 +82,7 @@ func TestLoad_EnvironmentVariables(t *testing.T) {
 func TestLoad_ViperSettings(t *testing.T) {
 	// Reset viper state
 	viper.Reset()
-	
+
 	// Set values directly in viper
 	viper.Set("metrics-bind-address", ":7070")
 	viper.Set("leader-elect", true)
@@ -91,10 +91,10 @@ func TestLoad_ViperSettings(t *testing.T) {
 	viper.Set("dry-run", true)
 	viper.Set("log-format", "console")
 	viper.Set("log-level", "warn")
-	
+
 	cfg, err := Load()
 	require.NoError(t, err)
-	
+
 	assert.Equal(t, ":7070", cfg.MetricsBindAddress)
 	assert.True(t, cfg.LeaderElection)
 	assert.Equal(t, 10, cfg.MaxConcurrentReconciles)
@@ -107,14 +107,14 @@ func TestLoad_ViperSettings(t *testing.T) {
 func TestLoad_EnvOverridesDefaults(t *testing.T) {
 	// Reset viper state
 	viper.Reset()
-	
+
 	// Set one environment variable
 	os.Setenv("SECRET_SANTA_MAX_CONCURRENT_RECONCILES", "3")
 	defer os.Unsetenv("SECRET_SANTA_MAX_CONCURRENT_RECONCILES")
-	
+
 	cfg, err := Load()
 	require.NoError(t, err)
-	
+
 	// Environment variable should override default
 	assert.Equal(t, 3, cfg.MaxConcurrentReconciles)
 	// Other values should remain defaults
@@ -125,7 +125,7 @@ func TestLoad_EnvOverridesDefaults(t *testing.T) {
 func TestLoad_CommaSeparatedEnvVars(t *testing.T) {
 	// Reset viper state
 	viper.Reset()
-	
+
 	// Test comma-separated environment variables
 	os.Setenv("SECRET_SANTA_WATCH_NAMESPACES", "ns1,ns2,ns3")
 	os.Setenv("SECRET_SANTA_INCLUDE_LABELS", "app=web,env=prod")
@@ -133,10 +133,10 @@ func TestLoad_CommaSeparatedEnvVars(t *testing.T) {
 		os.Unsetenv("SECRET_SANTA_WATCH_NAMESPACES")
 		os.Unsetenv("SECRET_SANTA_INCLUDE_LABELS")
 	}()
-	
+
 	cfg, err := Load()
 	require.NoError(t, err)
-	
+
 	assert.Equal(t, []string{"ns1", "ns2", "ns3"}, cfg.WatchNamespaces)
 	assert.Equal(t, []string{"app=web", "env=prod"}, cfg.IncludeLabels)
 }
@@ -156,7 +156,7 @@ func TestConfig_StructFields(t *testing.T) {
 		LogFormat:               "json",
 		LogLevel:                "debug",
 	}
-	
+
 	assert.Equal(t, ":8080", cfg.MetricsBindAddress)
 	assert.Equal(t, ":8081", cfg.HealthProbeBindAddress)
 	assert.True(t, cfg.LeaderElection)

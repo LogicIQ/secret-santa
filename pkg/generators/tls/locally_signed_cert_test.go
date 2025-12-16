@@ -92,10 +92,10 @@ func TestLocallySignedCertGenerator_Generate(t *testing.T) {
 		{
 			name: "custom validity period",
 			config: map[string]interface{}{
-				"cert_request_pem":        string(csrPEM),
-				"ca_private_key_pem":      string(caPrivateKeyPEM),
-				"ca_cert_pem":             string(caCertPEM),
-				"validity_period_hours":   float64(720), // 30 days
+				"cert_request_pem":      string(csrPEM),
+				"ca_private_key_pem":    string(caPrivateKeyPEM),
+				"ca_cert_pem":           string(caCertPEM),
+				"validity_period_hours": float64(720), // 30 days
 			},
 		},
 	}

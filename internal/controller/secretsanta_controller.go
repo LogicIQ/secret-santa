@@ -27,7 +27,6 @@ import (
 	tmplpkg "github.com/logicIQ/secret-santa/pkg/template"
 )
 
-
 const (
 	SecretSantaFinalizer = "secrets.secret-santa.io/finalizer"
 )
@@ -396,8 +395,6 @@ func (r *SecretSantaReconciler) updateStatus(ctx context.Context, secretSanta *s
 	}
 	return err
 }
-
-
 
 func getMapKeys(m map[string]string) []string {
 	keys := make([]string, 0, len(m))

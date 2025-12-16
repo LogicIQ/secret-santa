@@ -9,8 +9,8 @@ import (
 
 // GeneratorConfig defines configuration for secret generators
 type GeneratorConfig struct {
-	Name   string               `json:"name"`
-	Type   string               `json:"type"`
+	Name   string                `json:"name"`
+	Type   string                `json:"type"`
 	Config *runtime.RawExtension `json:"config,omitempty"`
 }
 

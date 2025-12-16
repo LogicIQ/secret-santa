@@ -11,14 +11,14 @@ type Config struct {
 	HealthProbeBindAddress  string
 	LeaderElection          bool
 	MaxConcurrentReconciles int
-	WatchNamespaces      []string
-	IncludeAnnotations   []string
-	ExcludeAnnotations   []string
-	IncludeLabels        []string
-	ExcludeLabels        []string
-	DryRun               bool
-	LogFormat            string
-	LogLevel             string
+	WatchNamespaces         []string
+	IncludeAnnotations      []string
+	ExcludeAnnotations      []string
+	IncludeLabels           []string
+	ExcludeLabels           []string
+	DryRun                  bool
+	LogFormat               string
+	LogLevel                string
 }
 
 func Load() (*Config, error) {

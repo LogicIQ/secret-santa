@@ -7,7 +7,6 @@ import (
 	"fmt"
 )
 
-
 type AESKeyGenerator struct{}
 
 func (g *AESKeyGenerator) Generate(config map[string]interface{}) (map[string]string, error) {

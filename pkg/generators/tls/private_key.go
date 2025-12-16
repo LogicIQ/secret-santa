@@ -9,8 +9,8 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
-	"strings"
 	"golang.org/x/crypto/ssh"
+	"strings"
 )
 
 type PrivateKeyGenerator struct{}

@@ -12,6 +12,31 @@ tasks:
       - go test -v -coverprofile=coverage.out ./pkg/generators/...
       - go tool cover -func=coverage.out
 
+  go:test:controller:
+    desc: Run controller tests individually to avoid metrics conflicts
+    cmds:
+      - go test -v ./internal/controller/... -run TestSecretSantaReconciler_executeTemplate
+      - go test -v ./internal/controller/... -run TestSecretSantaReconciler_validateTemplate
+      - go test -v ./internal/controller/... -run TestSecretSantaReconciler_shouldProcess
+      - go test -v ./internal/controller/... -run TestSecretSantaReconciler_validateGeneratorConfig
+      - go test -v ./internal/controller/... -run TestSecretSantaReconciler_generateTemplateData
+      - go test -v ./internal/controller/... -run TestGetMapKeys
+      - go test -v ./internal/controller/... -run TestSecretSantaReconciler_handleDeletion
+      - go test -v ./internal/controller/... -run TestSecretSantaReconciler_createOrUpdateSecret
+      - go test -v ./internal/controller/... -run TestSecretSantaReconciler_updateStatus
+
+  go:test:all:
+    desc: Run all tests including controller tests individually
+    cmds:
+      - task: go:test
+      - task: go:test:controller
+
+  go:fmt:
+    desc: Format and vet Go code
+    cmds:
+      - go fmt ./...
+      - go vet ./...
+
   go:manifests:
     desc: Generate CRD manifests
     cmds:

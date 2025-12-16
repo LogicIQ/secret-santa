@@ -6,7 +6,6 @@ import (
 	"crypto/rsa"
 )
 
-
 func getStringConfig(config map[string]interface{}, key, defaultValue string) string {
 	if val, ok := config[key].(string); ok {
 		return val

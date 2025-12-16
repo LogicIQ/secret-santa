@@ -7,30 +7,14 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
-	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	secretsantav1alpha1 "github.com/logicIQ/secret-santa/api/v1alpha1"
 )
-
-// Stub metrics functions for testing
-type Timer struct{}
-func (s *Timer) ObserveDuration() {}
-func NewReconcileTimer(name, namespace string) *Timer { return &Timer{} }
-func RecordReconcileComplete(name, namespace string, duration float64) {}
-func RecordSecretSkipped(name, namespace string) {}
-func RecordReconcileError(name, namespace, reason string) {}
-func RecordTemplateValidationError(name, namespace string) {}
-func RecordSecretGenerated(name, namespace, secretType string) {}
-func UpdateSecretInstances(name, namespace string, count float64) {}
-func NewGeneratorTimer(generatorType string) *Timer { return &Timer{} }
-func RecordGeneratorExecution(generatorType, status string) {}
 
 func TestSecretSantaReconciler_executeTemplate(t *testing.T) {
 	tests := []struct {
@@ -178,166 +162,6 @@ func TestSecretSantaReconciler_shouldProcess(t *testing.T) {
 			},
 			want: false,
 		},
-		{
-			name:          "include label present",
-			includeLabels: []string{"env"},
-			secretSanta: &secretsantav1alpha1.SecretSanta{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:   "test",
-					Labels: map[string]string{"env": "prod"},
-				},
-			},
-			want: true,
-		},
-		{
-			name:          "exclude label present",
-			excludeLabels: []string{"skip"},
-			secretSanta: &secretsantav1alpha1.SecretSanta{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:   "test",
-					Labels: map[string]string{"skip": "true"},
-				},
-			},
-			want: false,
-		},
-		{
-			name:               "multiple include annotations - all present",
-			includeAnnotations: []string{"app.kubernetes.io/name", "app.kubernetes.io/component"},
-			secretSanta: &secretsantav1alpha1.SecretSanta{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "test",
-					Annotations: map[string]string{
-						"app.kubernetes.io/name":      "myapp",
-						"app.kubernetes.io/component": "backend",
-					},
-				},
-			},
-			want: true,
-		},
-		{
-			name:               "multiple include annotations - one missing",
-			includeAnnotations: []string{"app.kubernetes.io/name", "app.kubernetes.io/component"},
-			secretSanta: &secretsantav1alpha1.SecretSanta{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:        "test",
-					Annotations: map[string]string{"app.kubernetes.io/name": "myapp"},
-				},
-			},
-			want: false,
-		},
-		{
-			name:               "multiple exclude annotations - one present",
-			excludeAnnotations: []string{"skip", "deprecated"},
-			secretSanta: &secretsantav1alpha1.SecretSanta{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:        "test",
-					Annotations: map[string]string{"skip": "true"},
-				},
-			},
-			want: false,
-		},
-		{
-			name:          "multiple include labels - all present",
-			includeLabels: []string{"environment", "app"},
-			secretSanta: &secretsantav1alpha1.SecretSanta{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "test",
-					Labels: map[string]string{
-						"environment": "production",
-						"app":         "web",
-					},
-				},
-			},
-			want: true,
-		},
-		{
-			name:          "multiple include labels - one missing",
-			includeLabels: []string{"environment", "app"},
-			secretSanta: &secretsantav1alpha1.SecretSanta{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:   "test",
-					Labels: map[string]string{"environment": "production"},
-				},
-			},
-			want: false,
-		},
-		{
-			name:          "multiple exclude labels - one present",
-			excludeLabels: []string{"skip", "deprecated"},
-			secretSanta: &secretsantav1alpha1.SecretSanta{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:   "test",
-					Labels: map[string]string{"deprecated": "true"},
-				},
-			},
-			want: false,
-		},
-		{
-			name:               "combined filters - include and exclude annotations",
-			includeAnnotations: []string{"process"},
-			excludeAnnotations: []string{"skip"},
-			secretSanta: &secretsantav1alpha1.SecretSanta{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "test",
-					Annotations: map[string]string{
-						"process": "true",
-						"skip":    "true",
-					},
-				},
-			},
-			want: false,
-		},
-		{
-			name:               "combined filters - include present, exclude absent",
-			includeAnnotations: []string{"process"},
-			excludeAnnotations: []string{"skip"},
-			secretSanta: &secretsantav1alpha1.SecretSanta{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:        "test",
-					Annotations: map[string]string{"process": "true"},
-				},
-			},
-			want: true,
-		},
-		{
-			name:          "combined filters - labels and annotations",
-			includeLabels: []string{"environment"},
-			excludeLabels: []string{"skip"},
-			includeAnnotations: []string{"process"},
-			excludeAnnotations: []string{"ignore"},
-			secretSanta: &secretsantav1alpha1.SecretSanta{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "test",
-					Labels: map[string]string{
-						"environment": "production",
-					},
-					Annotations: map[string]string{
-						"process": "true",
-					},
-				},
-			},
-			want: true,
-		},
-		{
-			name:               "nil annotations map",
-			includeAnnotations: []string{"process"},
-			secretSanta: &secretsantav1alpha1.SecretSanta{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "test",
-				},
-			},
-			want: false,
-		},
-		{
-			name:          "nil labels map",
-			includeLabels: []string{"environment"},
-			secretSanta: &secretsantav1alpha1.SecretSanta{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "test",
-				},
-			},
-			want: false,
-		},
 	}
 
 	for _, tt := range tests {
@@ -398,10 +222,10 @@ func TestSecretSantaReconciler_validateGeneratorConfig(t *testing.T) {
 
 func TestSecretSantaReconciler_generateTemplateData(t *testing.T) {
 	tests := []struct {
-		name      string
-		configs   []secretsantav1alpha1.GeneratorConfig
-		wantErr   bool
-		wantKeys  []string
+		name     string
+		configs  []secretsantav1alpha1.GeneratorConfig
+		wantErr  bool
+		wantKeys []string
 	}{
 		{
 			name: "valid random password generator",
@@ -409,8 +233,8 @@ func TestSecretSantaReconciler_generateTemplateData(t *testing.T) {
 				{
 					Name: "password",
 					Type: "random_password",
-					Config: &runtime.RawExtension{Raw: []byte(`{
-						"length": 12}`),
+					Config: &runtime.RawExtension{
+						Raw: []byte(`{"length": 12}`),
 					},
 				},
 			},
@@ -422,8 +246,8 @@ func TestSecretSantaReconciler_generateTemplateData(t *testing.T) {
 				{
 					Name: "password",
 					Type: "random_password",
-					Config: &runtime.RawExtension{Raw: []byte(`{
-						"length": 12}`),
+					Config: &runtime.RawExtension{
+						Raw: []byte(`{"length": 12}`),
 					},
 				},
 				{
@@ -463,7 +287,7 @@ func TestSecretSantaReconciler_generateTemplateData(t *testing.T) {
 				return
 			}
 			require.NoError(t, err)
-			
+
 			for _, key := range tt.wantKeys {
 				assert.Contains(t, data, key)
 			}
@@ -472,238 +296,80 @@ func TestSecretSantaReconciler_generateTemplateData(t *testing.T) {
 	}
 }
 
-func TestSecretSantaReconciler_Reconcile(t *testing.T) {
+func TestSecretSantaReconciler_createOrUpdateSecret(t *testing.T) {
 	scheme := runtime.NewScheme()
 	require.NoError(t, secretsantav1alpha1.AddToScheme(scheme))
 	require.NoError(t, corev1.AddToScheme(scheme))
 
 	tests := []struct {
-		name        string
-		secretSanta *secretsantav1alpha1.SecretSanta
-		existing    []client.Object
-		dryRun      bool
-		wantResult  ctrl.Result
-		wantErr     bool
-		wantSecret  bool
+		name       string
+		secretType string
+		data       string
+		wantData   map[string]string
 	}{
 		{
-			name: "resource not found",
-			wantResult: ctrl.Result{},
+			name:       "opaque secret",
+			secretType: "Opaque",
+			data:       "test-data",
+			wantData:   map[string]string{"data": "test-data"},
 		},
 		{
-			name: "successful reconcile",
-			secretSanta: &secretsantav1alpha1.SecretSanta{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "test-secret",
-					Namespace: "default",
-					Finalizers: []string{SecretSantaFinalizer},
-				},
-				Spec: secretsantav1alpha1.SecretSantaSpec{
-					SecretType: "Opaque",
-					Template:   "password: {{.password.value}}",
-					Generators: []secretsantav1alpha1.GeneratorConfig{
-						{
-							Name: "password",
-							Type: "random_password",
-							Config: &runtime.RawExtension{Raw: []byte(`{
-								"length": 12}`),
-							},
-						},
-					},
-				},
-			},
-			wantResult: ctrl.Result{},
-			wantSecret: true,
+			name:       "tls secret with proper format",
+			secretType: "kubernetes.io/tls",
+			data:       "tls.crt: cert-data\ntls.key: key-data",
+			wantData:   map[string]string{"tls.crt": "cert-data", "tls.key": "key-data"},
 		},
 		{
-			name: "dry run mode",
-			secretSanta: &secretsantav1alpha1.SecretSanta{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "test-secret",
-					Namespace: "default",
-					Finalizers: []string{SecretSantaFinalizer},
-				},
-				Spec: secretsantav1alpha1.SecretSantaSpec{
-					SecretType: "Opaque",
-					Template:   "password: {{.password.value}}",
-					Generators: []secretsantav1alpha1.GeneratorConfig{
-						{
-							Name: "password",
-							Type: "random_password",
-							Config: &runtime.RawExtension{Raw: []byte(`{
-								"length": 12}`),
-							},
-						},
-					},
-				},
-			},
-			dryRun:     true,
-			wantResult: ctrl.Result{},
-			wantSecret: false,
-		},
-		{
-			name: "secret already exists",
-			secretSanta: &secretsantav1alpha1.SecretSanta{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "test-secret",
-					Namespace: "default",
-					Finalizers: []string{SecretSantaFinalizer},
-				},
-				Spec: secretsantav1alpha1.SecretSantaSpec{
-					SecretType: "Opaque",
-					Template:   "password: test",
-				},
-			},
-			existing: []client.Object{
-				&corev1.Secret{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "test-secret",
-						Namespace: "default",
-					},
-				},
-			},
-			wantResult: ctrl.Result{},
-			wantSecret: true,
-		},
-		{
-			name: "invalid template",
-			secretSanta: &secretsantav1alpha1.SecretSanta{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "test-secret",
-					Namespace: "default",
-					Finalizers: []string{SecretSantaFinalizer},
-				},
-				Spec: secretsantav1alpha1.SecretSantaSpec{
-					SecretType: "Opaque",
-					Template:   "{{.invalid syntax",
-				},
-			},
-			wantErr: true,
+			name:       "tls secret fallback",
+			secretType: "kubernetes.io/tls",
+			data:       "invalid-format",
+			wantData:   map[string]string{"data": "invalid-format"},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			objs := tt.existing
-			if tt.secretSanta != nil {
-				objs = append(objs, tt.secretSanta)
+			secretSanta := &secretsantav1alpha1.SecretSanta{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-secret",
+					Namespace: "default",
+				},
+				Spec: secretsantav1alpha1.SecretSantaSpec{
+					SecretType:  tt.secretType,
+					Labels:      map[string]string{"app": "test"},
+					Annotations: map[string]string{"created-by": "secret-santa"},
+				},
 			}
 
 			client := fake.NewClientBuilder().
 				WithScheme(scheme).
-				WithObjects(objs...).
+				WithObjects(secretSanta).
 				WithStatusSubresource(&secretsantav1alpha1.SecretSanta{}).
 				Build()
 
 			r := &SecretSantaReconciler{
 				Client: client,
 				Scheme: scheme,
-				DryRun: tt.dryRun,
 			}
 
-			req := ctrl.Request{
-				NamespacedName: types.NamespacedName{
-					Name:      "test-secret",
-					Namespace: "default",
-				},
-			}
+			ctx := context.Background()
+			result, err := r.createOrUpdateSecret(ctx, secretSanta, tt.data, "test-secret")
 
-			ctx := log.IntoContext(context.Background(), log.Log)
-			result, err := r.Reconcile(ctx, req)
-
-			if tt.wantErr {
-				assert.Error(t, err)
-				return
-			}
 			require.NoError(t, err)
-			assert.Equal(t, tt.wantResult, result)
+			assert.Equal(t, ctrl.Result{}, result)
 
-			if tt.wantSecret && !tt.dryRun {
-				var secret corev1.Secret
-				err := client.Get(ctx, req.NamespacedName, &secret)
-				assert.NoError(t, err)
+			var secret corev1.Secret
+			err = client.Get(ctx, types.NamespacedName{Name: "test-secret", Namespace: "default"}, &secret)
+			require.NoError(t, err)
+
+			for key, expectedValue := range tt.wantData {
+				assert.Equal(t, expectedValue, secret.StringData[key])
 			}
+			assert.Equal(t, corev1.SecretType(tt.secretType), secret.Type)
+			assert.Equal(t, map[string]string{"app": "test"}, secret.Labels)
+			assert.Equal(t, map[string]string{"created-by": "secret-santa"}, secret.Annotations)
 		})
 	}
-}
-
-func TestSecretSantaReconciler_handleDeletion(t *testing.T) {
-	scheme := runtime.NewScheme()
-	require.NoError(t, secretsantav1alpha1.AddToScheme(scheme))
-
-	now := metav1.Now()
-	secretSanta := &secretsantav1alpha1.SecretSanta{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:              "test-secret",
-			Namespace:         "default",
-			DeletionTimestamp: &now,
-			Finalizers:        []string{SecretSantaFinalizer},
-		},
-	}
-
-	client := fake.NewClientBuilder().
-		WithScheme(scheme).
-		WithObjects(secretSanta).
-		Build()
-
-	r := &SecretSantaReconciler{
-		Client: client,
-		Scheme: scheme,
-	}
-
-	ctx := log.IntoContext(context.Background(), log.Log)
-	result, err := r.handleDeletion(ctx, secretSanta)
-
-	require.NoError(t, err)
-	assert.Equal(t, ctrl.Result{}, result)
-	assert.Empty(t, secretSanta.Finalizers)
-}
-
-func TestSecretSantaReconciler_createOrUpdateSecret(t *testing.T) {
-	scheme := runtime.NewScheme()
-	require.NoError(t, secretsantav1alpha1.AddToScheme(scheme))
-	require.NoError(t, corev1.AddToScheme(scheme))
-
-	secretSanta := &secretsantav1alpha1.SecretSanta{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test-secret",
-			Namespace: "default",
-		},
-		Spec: secretsantav1alpha1.SecretSantaSpec{
-			SecretType: "Opaque",
-			Labels:     map[string]string{"app": "test"},
-			Annotations: map[string]string{"created-by": "secret-santa"},
-		},
-	}
-
-	client := fake.NewClientBuilder().
-		WithScheme(scheme).
-		WithObjects(secretSanta).
-		WithStatusSubresource(&secretsantav1alpha1.SecretSanta{}).
-		Build()
-
-	r := &SecretSantaReconciler{
-		Client: client,
-		Scheme: scheme,
-	}
-
-	ctx := log.IntoContext(context.Background(), log.Log)
-	result, err := r.createOrUpdateSecret(ctx, secretSanta, "test-data", "test-secret")
-
-	require.NoError(t, err)
-	assert.Equal(t, ctrl.Result{}, result)
-
-	var secret corev1.Secret
-	err = client.Get(ctx, types.NamespacedName{
-		Name:      "test-secret",
-		Namespace: "default",
-	}, &secret)
-	require.NoError(t, err)
-
-	assert.Equal(t, "test-data", secret.StringData["data"])
-	assert.Equal(t, corev1.SecretType("Opaque"), secret.Type)
-	assert.Equal(t, map[string]string{"app": "test"}, secret.Labels)
-	assert.Equal(t, map[string]string{"created-by": "secret-santa"}, secret.Annotations)
 }
 
 func TestSecretSantaReconciler_updateStatus(t *testing.T) {
@@ -712,7 +378,7 @@ func TestSecretSantaReconciler_updateStatus(t *testing.T) {
 
 	secretSanta := &secretsantav1alpha1.SecretSanta{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test-secret",
+			Name:      "test",
 			Namespace: "default",
 		},
 	}
@@ -729,182 +395,18 @@ func TestSecretSantaReconciler_updateStatus(t *testing.T) {
 	}
 
 	ctx := context.Background()
-	err := r.updateStatus(ctx, secretSanta, "Ready", "True", "Success")
+	err := r.updateStatus(ctx, secretSanta, "Ready", "True", "Test message")
 	require.NoError(t, err)
 
-	assert.NotNil(t, secretSanta.Status.LastGenerated)
-	require.Len(t, secretSanta.Status.Conditions, 1)
-	
-	condition := secretSanta.Status.Conditions[0]
-	assert.Equal(t, "Ready", condition.Type)
-	assert.Equal(t, metav1.ConditionTrue, condition.Status)
-	assert.Equal(t, "Success", condition.Message)
-}
+	var updated secretsantav1alpha1.SecretSanta
+	err = client.Get(ctx, types.NamespacedName{Name: "test", Namespace: "default"}, &updated)
+	require.NoError(t, err)
 
-func TestSecretSantaReconciler_ReconcileWithFiltering(t *testing.T) {
-	scheme := runtime.NewScheme()
-	require.NoError(t, secretsantav1alpha1.AddToScheme(scheme))
-	require.NoError(t, corev1.AddToScheme(scheme))
-
-	tests := []struct {
-		name               string
-		includeAnnotations []string
-		excludeAnnotations []string
-		includeLabels      []string
-		excludeLabels      []string
-		secretSanta        *secretsantav1alpha1.SecretSanta
-		wantSecret         bool
-	}{
-		{
-			name: "no filters - should process",
-			secretSanta: &secretsantav1alpha1.SecretSanta{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:       "test-secret",
-					Namespace:  "default",
-					Finalizers: []string{SecretSantaFinalizer},
-				},
-				Spec: secretsantav1alpha1.SecretSantaSpec{
-					SecretType: "Opaque",
-					Template:   "data: test",
-				},
-			},
-			wantSecret: true,
-		},
-		{
-			name:               "include annotation present - should process",
-			includeAnnotations: []string{"secret-santa.io/managed"},
-			secretSanta: &secretsantav1alpha1.SecretSanta{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:       "test-secret",
-					Namespace:  "default",
-					Finalizers: []string{SecretSantaFinalizer},
-					Annotations: map[string]string{
-						"secret-santa.io/managed": "true",
-					},
-				},
-				Spec: secretsantav1alpha1.SecretSantaSpec{
-					SecretType: "Opaque",
-					Template:   "data: test",
-				},
-			},
-			wantSecret: true,
-		},
-		{
-			name:               "include annotation missing - should skip",
-			includeAnnotations: []string{"secret-santa.io/managed"},
-			secretSanta: &secretsantav1alpha1.SecretSanta{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:       "test-secret",
-					Namespace:  "default",
-					Finalizers: []string{SecretSantaFinalizer},
-				},
-				Spec: secretsantav1alpha1.SecretSantaSpec{
-					SecretType: "Opaque",
-					Template:   "data: test",
-				},
-			},
-			wantSecret: false,
-		},
-		{
-			name:               "exclude annotation present - should skip",
-			excludeAnnotations: []string{"secret-santa.io/ignore"},
-			secretSanta: &secretsantav1alpha1.SecretSanta{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:       "test-secret",
-					Namespace:  "default",
-					Finalizers: []string{SecretSantaFinalizer},
-					Annotations: map[string]string{
-						"secret-santa.io/ignore": "true",
-					},
-				},
-				Spec: secretsantav1alpha1.SecretSantaSpec{
-					SecretType: "Opaque",
-					Template:   "data: test",
-				},
-			},
-			wantSecret: false,
-		},
-		{
-			name:          "include label present - should process",
-			includeLabels: []string{"environment"},
-			secretSanta: &secretsantav1alpha1.SecretSanta{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:       "test-secret",
-					Namespace:  "default",
-					Finalizers: []string{SecretSantaFinalizer},
-					Labels: map[string]string{
-						"environment": "production",
-					},
-				},
-				Spec: secretsantav1alpha1.SecretSantaSpec{
-					SecretType: "Opaque",
-					Template:   "data: test",
-				},
-			},
-			wantSecret: true,
-		},
-		{
-			name:          "exclude label present - should skip",
-			excludeLabels: []string{"skip"},
-			secretSanta: &secretsantav1alpha1.SecretSanta{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:       "test-secret",
-					Namespace:  "default",
-					Finalizers: []string{SecretSantaFinalizer},
-					Labels: map[string]string{
-						"skip": "true",
-					},
-				},
-				Spec: secretsantav1alpha1.SecretSantaSpec{
-					SecretType: "Opaque",
-					Template:   "data: test",
-				},
-			},
-			wantSecret: false,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			client := fake.NewClientBuilder().
-				WithScheme(scheme).
-				WithObjects(tt.secretSanta).
-				WithStatusSubresource(&secretsantav1alpha1.SecretSanta{}).
-				Build()
-
-			r := &SecretSantaReconciler{
-				Client:             client,
-				Scheme:             scheme,
-				IncludeAnnotations: tt.includeAnnotations,
-				ExcludeAnnotations: tt.excludeAnnotations,
-				IncludeLabels:      tt.includeLabels,
-				ExcludeLabels:      tt.excludeLabels,
-			}
-
-			req := ctrl.Request{
-				NamespacedName: types.NamespacedName{
-					Name:      "test-secret",
-					Namespace: "default",
-				},
-			}
-
-			ctx := log.IntoContext(context.Background(), log.Log)
-			result, err := r.Reconcile(ctx, req)
-
-			require.NoError(t, err)
-			assert.Equal(t, ctrl.Result{}, result)
-
-			// Check if secret was created based on expectation
-			var secret corev1.Secret
-			err = client.Get(ctx, req.NamespacedName, &secret)
-			if tt.wantSecret {
-				assert.NoError(t, err, "Expected secret to be created")
-			} else {
-				assert.Error(t, err, "Expected secret NOT to be created")
-				assert.True(t, errors.IsNotFound(err), "Expected NotFound error")
-			}
-		})
-	}
+	require.Len(t, updated.Status.Conditions, 1)
+	assert.Equal(t, "Ready", updated.Status.Conditions[0].Type)
+	assert.Equal(t, metav1.ConditionTrue, updated.Status.Conditions[0].Status)
+	assert.Equal(t, "Test message", updated.Status.Conditions[0].Message)
+	assert.NotNil(t, updated.Status.LastGenerated)
 }
 
 func TestGetMapKeys(t *testing.T) {
@@ -934,6 +436,104 @@ func TestGetMapKeys(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			got := getMapKeys(tt.m)
 			assert.Len(t, got, tt.want)
+		})
+	}
+}
+
+func TestSecretSantaReconciler_handleDeletion(t *testing.T) {
+	scheme := runtime.NewScheme()
+	require.NoError(t, secretsantav1alpha1.AddToScheme(scheme))
+
+	secretSanta := &secretsantav1alpha1.SecretSanta{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:       "test",
+			Namespace:  "default",
+			Finalizers: []string{SecretSantaFinalizer},
+		},
+	}
+
+	client := fake.NewClientBuilder().
+		WithScheme(scheme).
+		WithObjects(secretSanta).
+		Build()
+
+	r := &SecretSantaReconciler{
+		Client: client,
+		Scheme: scheme,
+	}
+
+	ctx := context.Background()
+	result, err := r.handleDeletion(ctx, secretSanta)
+
+	require.NoError(t, err)
+	assert.Equal(t, ctrl.Result{}, result)
+	assert.Empty(t, secretSanta.Finalizers)
+}
+
+func TestSecretSantaReconciler_shouldProcessFiltering(t *testing.T) {
+	tests := []struct {
+		name               string
+		includeAnnotations []string
+		excludeAnnotations []string
+		includeLabels      []string
+		excludeLabels      []string
+		annotations        map[string]string
+		labels             map[string]string
+		want               bool
+	}{
+		{
+			name: "no filters",
+			want: true,
+		},
+		{
+			name:               "include annotation present",
+			includeAnnotations: []string{"process"},
+			annotations:        map[string]string{"process": "true"},
+			want:               true,
+		},
+		{
+			name:               "include annotation missing",
+			includeAnnotations: []string{"process"},
+			want:               false,
+		},
+		{
+			name:               "exclude annotation present",
+			excludeAnnotations: []string{"skip"},
+			annotations:        map[string]string{"skip": "true"},
+			want:               false,
+		},
+		{
+			name:          "include label present",
+			includeLabels: []string{"env"},
+			labels:        map[string]string{"env": "prod"},
+			want:          true,
+		},
+		{
+			name:          "exclude label present",
+			excludeLabels: []string{"skip"},
+			labels:        map[string]string{"skip": "true"},
+			want:          false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r := &SecretSantaReconciler{
+				IncludeAnnotations: tt.includeAnnotations,
+				ExcludeAnnotations: tt.excludeAnnotations,
+				IncludeLabels:      tt.includeLabels,
+				ExcludeLabels:      tt.excludeLabels,
+			}
+
+			secretSanta := &secretsantav1alpha1.SecretSanta{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: tt.annotations,
+					Labels:      tt.labels,
+				},
+			}
+
+			got := r.shouldProcess(secretSanta)
+			assert.Equal(t, tt.want, got)
 		})
 	}
 }

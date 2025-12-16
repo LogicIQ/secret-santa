@@ -196,7 +196,6 @@ func UpdateManagedSecretsCount(count float64) {
 	ManagedSecretsTotal.Set(count)
 }
 
-
 func NewReconcileTimer(name, namespace string) *prometheus.Timer {
 	ReconcileActive.WithLabelValues(name, namespace).Set(1)
 	return prometheus.NewTimer(prometheus.ObserverFunc(func(v float64) {
@@ -226,7 +225,6 @@ func RecordSecretGenerated(name, namespace, secretType string) {
 func UpdateSecretInstances(name, namespace string, count float64) {
 	SecretInstances.WithLabelValues(name, namespace).Set(count)
 }
-
 
 var (
 	SyncCallCount = prometheus.NewCounterVec(prometheus.CounterOpts{
