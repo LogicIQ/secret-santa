@@ -8,7 +8,6 @@ import (
 	"time"
 )
 
-// PasswordGenerator generates random passwords
 type PasswordGenerator struct{}
 
 func (g *PasswordGenerator) Generate(config map[string]interface{}) (map[string]string, error) {

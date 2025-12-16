@@ -9,7 +9,6 @@ import (
 	"fmt"
 )
 
-// ECDHKeyGenerator generates ECDH key pairs for key exchange
 type ECDHKeyGenerator struct{}
 
 func (g *ECDHKeyGenerator) Generate(config map[string]interface{}) (map[string]string, error) {

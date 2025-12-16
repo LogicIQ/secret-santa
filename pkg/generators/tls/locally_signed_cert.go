@@ -9,7 +9,6 @@ import (
 	"time"
 )
 
-// LocallySignedCertGenerator generates locally signed certificates
 type LocallySignedCertGenerator struct{}
 
 func (g *LocallySignedCertGenerator) Generate(config map[string]interface{}) (map[string]string, error) {

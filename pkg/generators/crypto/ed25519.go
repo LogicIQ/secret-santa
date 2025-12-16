@@ -8,7 +8,6 @@ import (
 	"encoding/pem"
 )
 
-// ED25519KeyGenerator generates ED25519 key pairs for application use
 type ED25519KeyGenerator struct{}
 
 func (g *ED25519KeyGenerator) Generate(config map[string]interface{}) (map[string]string, error) {

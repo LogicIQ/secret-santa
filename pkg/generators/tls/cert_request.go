@@ -8,7 +8,6 @@ import (
 	"fmt"
 )
 
-// CertRequestGenerator generates certificate signing requests
 type CertRequestGenerator struct{}
 
 func (g *CertRequestGenerator) Generate(config map[string]interface{}) (map[string]string, error) {

@@ -7,7 +7,6 @@ import (
 	"time"
 )
 
-// BytesGenerator generates random bytes
 type BytesGenerator struct{}
 
 func (g *BytesGenerator) Generate(config map[string]interface{}) (map[string]string, error) {

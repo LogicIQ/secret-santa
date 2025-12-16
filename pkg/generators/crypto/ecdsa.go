@@ -10,7 +10,6 @@ import (
 	"fmt"
 )
 
-// ECDSAKeyGenerator generates ECDSA key pairs
 type ECDSAKeyGenerator struct{}
 
 func (g *ECDSAKeyGenerator) Generate(config map[string]interface{}) (map[string]string, error) {

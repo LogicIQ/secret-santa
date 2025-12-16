@@ -4,6 +4,7 @@ import (
 	"sync"
 
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/collectors"
 	"sigs.k8s.io/controller-runtime/pkg/metrics"
 )
 
@@ -14,205 +15,250 @@ const (
 	KubernetesClientSubsystem = "kubernetes_client"
 )
 
-// Controller metrics
 var (
-	SecretsGenerated = prometheus.NewCounterVec(
+	SuccessGenerationTotal = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Namespace: Namespace,
 			Subsystem: ControllerSubsystem,
-			Name:      "secrets_generated_total",
-			Help:      "Total number of secrets generated",
+			Name:      "success_generation_total",
+			Help:      "Successful secret generations",
 		},
-		[]string{"namespace", "name", "type"},
+		[]string{"secretsanta", "namespace"},
 	)
 
-	SecretsSkipped = prometheus.NewCounterVec(
+	FailedGenerationTotal = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Namespace: Namespace,
+			Subsystem: ControllerSubsystem,
+			Name:      "failed_generation_total",
+			Help:      "Failed secret generations",
+		},
+		[]string{"secretsanta", "namespace", "reason"},
+	)
+
+	LoopSecondsTotal = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Namespace: Namespace,
+			Subsystem: ControllerSubsystem,
+			Name:      "loop_seconds_total",
+			Help:      "Total seconds spent in processing loops",
+		},
+	)
+
+	SecretsSkippedTotal = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Namespace: Namespace,
 			Subsystem: ControllerSubsystem,
 			Name:      "secrets_skipped_total",
-			Help:      "Total number of secrets skipped (already exists)",
+			Help:      "Secrets skipped (already exist)",
 		},
-		[]string{"namespace", "name"},
+		[]string{"secretsanta", "namespace"},
 	)
 
-	ReconcileErrors = prometheus.NewCounterVec(
+	TemplateValidationFailedTotal = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Namespace: Namespace,
 			Subsystem: ControllerSubsystem,
-			Name:      "reconcile_errors_total",
-			Help:      "Total number of reconcile errors",
+			Name:      "template_validation_failed_total",
+			Help:      "Template validation failures",
 		},
-		[]string{"namespace", "name", "reason"},
+		[]string{"secretsanta", "namespace"},
 	)
 
-	ReconcileTime = prometheus.NewHistogramVec(
+	GeneratorExecutionsTotal = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Namespace: Namespace,
+			Subsystem: GeneratorSubsystem,
+			Name:      "executions_total",
+			Help:      "Total generator executions",
+		},
+		[]string{"generator_type", "status"},
+	)
+
+	GeneratorResponseTime = prometheus.NewHistogramVec(
 		prometheus.HistogramOpts{
 			Namespace: Namespace,
-			Subsystem: ControllerSubsystem,
-			Name:      "reconcile_duration_seconds",
-			Help:      "Time spent reconciling SecretSanta resources",
+			Subsystem: GeneratorSubsystem,
+			Name:      "response_time_seconds",
+			Help:      "Generator execution times",
 			Buckets:   prometheus.DefBuckets,
 		},
-		[]string{"namespace", "name"},
+		[]string{"generator_type"},
+	)
+
+	KubernetesClientFailTotal = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Namespace: Namespace,
+			Subsystem: KubernetesClientSubsystem,
+			Name:      "fail_total",
+			Help:      "Failed API requests",
+		},
+		[]string{"operation"},
+	)
+
+	KubernetesClientRequestsTotal = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Namespace: Namespace,
+			Subsystem: KubernetesClientSubsystem,
+			Name:      "requests_total",
+			Help:      "Total API requests",
+		},
+		[]string{"operation", "status"},
 	)
 
 	LastReconciliationTime = prometheus.NewGauge(
 		prometheus.GaugeOpts{
 			Namespace: Namespace,
-			Subsystem: ControllerSubsystem,
 			Name:      "last_reconciliation_timestamp_seconds",
-			Help:      "Timestamp of the last reconciliation",
+			Help:      "Last reconciliation timestamp",
 		},
+	)
+
+	ReconciliationStatus = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Namespace: Namespace,
+			Name:      "reconciliation_status",
+			Help:      "Reconciliation status (1=success, 0=failure)",
+		},
+		[]string{"status"},
 	)
 
 	ManagedSecretsTotal = prometheus.NewGauge(
 		prometheus.GaugeOpts{
 			Namespace: Namespace,
-			Subsystem: ControllerSubsystem,
 			Name:      "managed_secrets_total",
-			Help:      "Total number of SecretSanta resources currently managed",
+			Help:      "Total managed SecretSanta resources",
 		},
 	)
 
-	ReconcileActive = prometheus.NewGaugeVec(
+	SecretGenerationStatus = prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
 			Namespace: Namespace,
-			Subsystem: ControllerSubsystem,
-			Name:      "reconcile_active",
-			Help:      "Shows if reconcile loop is currently running",
+			Name:      "secret_generation_status",
+			Help:      "Secret generation status (1=generated, 0=failed)",
 		},
-		[]string{"namespace", "name"},
-	)
-
-	LastReconcileDuration = prometheus.NewGaugeVec(
-		prometheus.GaugeOpts{
-			Namespace: Namespace,
-			Subsystem: ControllerSubsystem,
-			Name:      "last_reconcile_duration_seconds",
-			Help:      "Duration of the last reconcile operation",
-		},
-		[]string{"namespace", "name"},
-	)
-
-	SecretInstances = prometheus.NewGaugeVec(
-		prometheus.GaugeOpts{
-			Namespace: Namespace,
-			Subsystem: ControllerSubsystem,
-			Name:      "secret_instances",
-			Help:      "Number of secret instances managed per SecretSanta resource",
-		},
-		[]string{"namespace", "name"},
+		[]string{"secretsanta", "namespace"},
 	)
 )
 
-// Generator metrics
-var (
-	GeneratorExecutions = prometheus.NewCounterVec(
-		prometheus.CounterOpts{
-			Namespace: Namespace,
-			Subsystem: GeneratorSubsystem,
-			Name:      "executions_total",
-			Help:      "Total number of generator executions",
-		},
-		[]string{"generator_type", "status"},
-	)
-
-	TemplateValidationErrors = prometheus.NewCounterVec(
-		prometheus.CounterOpts{
-			Namespace: Namespace,
-			Subsystem: GeneratorSubsystem,
-			Name:      "template_validation_errors_total",
-			Help:      "Total number of template validation errors",
-		},
-		[]string{"namespace", "name"},
-	)
-
-	GeneratorDuration = prometheus.NewHistogramVec(
-		prometheus.HistogramOpts{
-			Namespace: Namespace,
-			Subsystem: GeneratorSubsystem,
-			Name:      "duration_seconds",
-			Help:      "Time spent executing generators",
-			Buckets:   prometheus.DefBuckets,
-		},
-		[]string{"generator_type"},
-	)
-)
-
-// Kubernetes client metrics
-var (
-	KubernetesClientRequests = prometheus.NewCounterVec(
-		prometheus.CounterOpts{
-			Namespace: Namespace,
-			Subsystem: KubernetesClientSubsystem,
-			Name:      "requests_total",
-			Help:      "Total API requests to Kubernetes",
-		},
-		[]string{"operation", "status"},
-	)
-
-	KubernetesClientErrors = prometheus.NewCounterVec(
-		prometheus.CounterOpts{
-			Namespace: Namespace,
-			Subsystem: KubernetesClientSubsystem,
-			Name:      "errors_total",
-			Help:      "Total API request errors to Kubernetes",
-		},
-		[]string{"operation"},
-	)
-)
-
-// Helper functions
-func RecordSecretGenerated(namespace, name, secretType string) {
-	SecretsGenerated.WithLabelValues(namespace, name, secretType).Inc()
-	LastReconciliationTime.SetToCurrentTime()
+func RecordSuccessfulGeneration(secretSantaName, namespace string) {
+	SuccessGenerationTotal.WithLabelValues(secretSantaName, namespace).Inc()
+	SecretGenerationStatus.WithLabelValues(secretSantaName, namespace).Set(1)
 }
 
-func RecordSecretSkipped(namespace, name string) {
-	SecretsSkipped.WithLabelValues(namespace, name).Inc()
+func RecordFailedGeneration(secretSantaName, namespace, reason string) {
+	FailedGenerationTotal.WithLabelValues(secretSantaName, namespace, reason).Inc()
+	SecretGenerationStatus.WithLabelValues(secretSantaName, namespace).Set(0)
 }
 
-func RecordReconcileError(namespace, name, reason string) {
-	ReconcileErrors.WithLabelValues(namespace, name, reason).Inc()
+func RecordSecretSkipped(secretSantaName, namespace string) {
+	SecretsSkippedTotal.WithLabelValues(secretSantaName, namespace).Inc()
 }
 
-func RecordTemplateValidationError(namespace, name string) {
-	TemplateValidationErrors.WithLabelValues(namespace, name).Inc()
+func RecordTemplateValidationFailed(secretSantaName, namespace string) {
+	TemplateValidationFailedTotal.WithLabelValues(secretSantaName, namespace).Inc()
 }
 
 func RecordGeneratorExecution(generatorType, status string) {
-	GeneratorExecutions.WithLabelValues(generatorType, status).Inc()
+	GeneratorExecutionsTotal.WithLabelValues(generatorType, status).Inc()
 }
 
-func RecordKubernetesRequest(operation, status string) {
-	KubernetesClientRequests.WithLabelValues(operation, status).Inc()
-	if status == "error" {
-		KubernetesClientErrors.WithLabelValues(operation).Inc()
+func RecordKubernetesClientRequest(operation, status string) {
+	KubernetesClientRequestsTotal.WithLabelValues(operation, status).Inc()
+	if status == "failed" {
+		KubernetesClientFailTotal.WithLabelValues(operation).Inc()
 	}
 }
 
-func NewReconcileTimer(namespace, name string) *prometheus.Timer {
-	ReconcileActive.WithLabelValues(namespace, name).Set(1)
-	return prometheus.NewTimer(ReconcileTime.WithLabelValues(namespace, name))
-}
-
-func RecordReconcileComplete(namespace, name string, duration float64) {
-	ReconcileActive.WithLabelValues(namespace, name).Set(0)
-	LastReconcileDuration.WithLabelValues(namespace, name).Set(duration)
-}
-
-func UpdateSecretInstances(namespace, name string, count float64) {
-	SecretInstances.WithLabelValues(namespace, name).Set(count)
+func RecordLoopDuration(seconds float64) {
+	LoopSecondsTotal.Add(seconds)
 }
 
 func NewGeneratorTimer(generatorType string) *prometheus.Timer {
-	return prometheus.NewTimer(GeneratorDuration.WithLabelValues(generatorType))
+	return prometheus.NewTimer(GeneratorResponseTime.WithLabelValues(generatorType))
+}
+
+func UpdateLastReconciliationTime() {
+	LastReconciliationTime.SetToCurrentTime()
+}
+
+func UpdateReconciliationStatus(success bool) {
+	if success {
+		ReconciliationStatus.WithLabelValues("success").Set(1)
+		ReconciliationStatus.WithLabelValues("failure").Set(0)
+	} else {
+		ReconciliationStatus.WithLabelValues("success").Set(0)
+		ReconciliationStatus.WithLabelValues("failure").Set(1)
+	}
 }
 
 func UpdateManagedSecretsCount(count float64) {
 	ManagedSecretsTotal.Set(count)
 }
+
+
+func NewReconcileTimer(name, namespace string) *prometheus.Timer {
+	ReconcileActive.WithLabelValues(name, namespace).Set(1)
+	return prometheus.NewTimer(prometheus.ObserverFunc(func(v float64) {
+		LastReconcileDuration.WithLabelValues(name, namespace).Set(v)
+	}))
+}
+
+func RecordReconcileComplete(name, namespace string, duration float64) {
+	ReconcileActive.WithLabelValues(name, namespace).Set(0)
+	LastReconcileDuration.WithLabelValues(name, namespace).Set(duration)
+}
+
+func RecordReconcileError(name, namespace, reason string) {
+	SyncErrorCount.WithLabelValues(name, namespace).Inc()
+	FailedGenerationTotal.WithLabelValues(name, namespace, reason).Inc()
+}
+
+func RecordTemplateValidationError(name, namespace string) {
+	TemplateValidationFailedTotal.WithLabelValues(name, namespace).Inc()
+}
+
+func RecordSecretGenerated(name, namespace, secretType string) {
+	SuccessGenerationTotal.WithLabelValues(name, namespace).Inc()
+	SyncCallCount.WithLabelValues(name, namespace).Inc()
+}
+
+func UpdateSecretInstances(name, namespace string, count float64) {
+	SecretInstances.WithLabelValues(name, namespace).Set(count)
+}
+
+
+var (
+	SyncCallCount = prometheus.NewCounterVec(prometheus.CounterOpts{
+		Subsystem: "secretsanta",
+		Name:      "controller_sync_call_count",
+		Help:      "The number of reconciliation loops made by a controller",
+	}, []string{"secretsanta_name", "secretsanta_namespace"})
+
+	SyncErrorCount = prometheus.NewCounterVec(prometheus.CounterOpts{
+		Subsystem: "secretsanta",
+		Name:      "controller_sync_error_count",
+		Help:      "The number of failed reconciliation loops",
+	}, []string{"secretsanta_name", "secretsanta_namespace"})
+
+	LastReconcileDuration = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Subsystem: "secretsanta",
+		Name:      "controller_last_reconcile_duration_seconds",
+		Help:      "Duration of the last reconcile operation",
+	}, []string{"secretsanta_name", "secretsanta_namespace"})
+
+	ReconcileActive = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Subsystem: "secretsanta",
+		Name:      "controller_reconcile_active",
+		Help:      "Shows if Reconcile loop is running",
+	}, []string{"secretsanta_name", "secretsanta_namespace"})
+
+	SecretInstances = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Subsystem: "secretsanta",
+		Name:      "controller_secrets_instances",
+		Help:      "The number of desired secret instances",
+	}, []string{"secretsanta_name", "secretsanta_namespace"})
+)
 
 var registerOnce sync.Once
 
@@ -220,22 +266,31 @@ func init() {
 	registerOnce.Do(func() {
 		metrics.Registry.MustRegister(
 			// Controller metrics
-			SecretsGenerated,
-			SecretsSkipped,
-			ReconcileErrors,
-			ReconcileTime,
-			LastReconciliationTime,
-			ManagedSecretsTotal,
-			ReconcileActive,
-			LastReconcileDuration,
-			SecretInstances,
+			SuccessGenerationTotal,
+			FailedGenerationTotal,
+			LoopSecondsTotal,
+			SecretsSkippedTotal,
+			TemplateValidationFailedTotal,
 			// Generator metrics
-			GeneratorExecutions,
-			TemplateValidationErrors,
-			GeneratorDuration,
+			GeneratorExecutionsTotal,
+			GeneratorResponseTime,
 			// Client metrics
-			KubernetesClientRequests,
-			KubernetesClientErrors,
+			KubernetesClientFailTotal,
+			KubernetesClientRequestsTotal,
+			// Operational metrics
+			LastReconciliationTime,
+			ReconciliationStatus,
+			ManagedSecretsTotal,
+			SecretGenerationStatus,
+			// Cannon-style simple metrics
+			SyncCallCount,
+			SyncErrorCount,
+			LastReconcileDuration,
+			ReconcileActive,
+			SecretInstances,
+			// Go runtime metrics
+			collectors.NewGoCollector(),
+			collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}),
 		)
 	})
 }

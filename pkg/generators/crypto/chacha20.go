@@ -6,7 +6,6 @@ import (
 	"encoding/hex"
 )
 
-// ChaCha20KeyGenerator generates ChaCha20 encryption keys
 type ChaCha20KeyGenerator struct{}
 
 func (g *ChaCha20KeyGenerator) Generate(config map[string]interface{}) (map[string]string, error) {
@@ -24,7 +23,6 @@ func (g *ChaCha20KeyGenerator) Generate(config map[string]interface{}) (map[stri
 	}, nil
 }
 
-// XChaCha20KeyGenerator generates XChaCha20 encryption keys
 type XChaCha20KeyGenerator struct{}
 
 func (g *XChaCha20KeyGenerator) Generate(config map[string]interface{}) (map[string]string, error) {

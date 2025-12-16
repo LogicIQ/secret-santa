@@ -10,7 +10,6 @@ import (
 	"time"
 )
 
-// SelfSignedCertGenerator generates self-signed TLS certificates
 type SelfSignedCertGenerator struct{}
 
 func (g *SelfSignedCertGenerator) Generate(config map[string]interface{}) (map[string]string, error) {

@@ -1,19 +1,26 @@
-FROM golang:1.25-alpine AS builder
+FROM golang:1.25 AS builder
+ARG TARGETOS
+ARG TARGETARCH
+ARG VERSION=dev
+ARG GIT_HASH=unknown
 
 WORKDIR /workspace
 
-# Copy go mod files first for better caching
+# Cache dependencies
 COPY go.mod go.sum ./
-RUN go mod download
+RUN --mount=type=cache,target=/go/pkg/mod go mod download
 
 # Copy source code
-COPY . .
+COPY cmd/ cmd/
+COPY internal/ internal/
+COPY pkg/ pkg/
+COPY api/ api/
 
-# Build with cache mount and optimizations
+# Build with optimizations and cache mount
 RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=cache,target=/go/pkg/mod \
-    CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
-    go build -ldflags="-w -s" -o manager cmd/main.go
+    CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH} \
+    go build -ldflags="-w -s -X main.version=${VERSION} -X main.gitHash=${GIT_HASH}" -trimpath -o manager cmd/main.go
 
 FROM gcr.io/distroless/static:nonroot
 WORKDIR /

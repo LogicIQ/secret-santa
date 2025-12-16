@@ -28,7 +28,7 @@ import (
 	tmplpkg "github.com/logicIQ/secret-santa/pkg/template"
 )
 
-// SecretSantaReconciler reconciles a SecretSanta object
+
 const (
 	SecretSantaFinalizer = "secrets.secret-santa.io/finalizer"
 )

@@ -5,7 +5,6 @@ import (
 	"time"
 )
 
-// StaticGenerator generates static timestamps
 type StaticGenerator struct{}
 
 func (g *StaticGenerator) Generate(config map[string]interface{}) (map[string]string, error) {

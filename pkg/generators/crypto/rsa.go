@@ -9,7 +9,6 @@ import (
 	"fmt"
 )
 
-// RSAKeyGenerator generates RSA key pairs for application use
 type RSAKeyGenerator struct{}
 
 func (g *RSAKeyGenerator) Generate(config map[string]interface{}) (map[string]string, error) {

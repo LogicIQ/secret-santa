@@ -13,7 +13,6 @@ import (
 	"golang.org/x/crypto/ssh"
 )
 
-// PrivateKeyGenerator generates private keys (RSA, ECDSA, ED25519)
 type PrivateKeyGenerator struct{}
 
 func (g *PrivateKeyGenerator) Generate(config map[string]interface{}) (map[string]string, error) {

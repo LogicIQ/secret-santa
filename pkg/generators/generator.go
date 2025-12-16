@@ -7,7 +7,7 @@ type Generator interface {
 	Generate(config map[string]interface{}) (map[string]string, error)
 }
 
-// Helper functions
+
 func getStringConfig(config map[string]interface{}, key, defaultValue string) string {
 	if val, ok := config[key].(string); ok {
 		return val

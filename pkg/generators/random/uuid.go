@@ -5,7 +5,6 @@ import (
 	"time"
 )
 
-// UUIDGenerator generates UUIDs
 type UUIDGenerator struct{}
 
 func (g *UUIDGenerator) Generate(config map[string]interface{}) (map[string]string, error) {

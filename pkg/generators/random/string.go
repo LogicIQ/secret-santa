@@ -8,7 +8,6 @@ import (
 	"time"
 )
 
-// StringGenerator generates random strings
 type StringGenerator struct{}
 
 func (g *StringGenerator) Generate(config map[string]interface{}) (map[string]string, error) {

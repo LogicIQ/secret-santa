@@ -7,7 +7,6 @@ import (
 	"time"
 )
 
-// IntegerGenerator generates random integers
 type IntegerGenerator struct{}
 
 func (g *IntegerGenerator) Generate(config map[string]interface{}) (map[string]string, error) {

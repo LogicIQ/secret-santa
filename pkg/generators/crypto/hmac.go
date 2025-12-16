@@ -12,7 +12,7 @@ import (
 	"strings"
 )
 
-// HMACGenerator generates HMAC signatures
+
 type HMACGenerator struct{}
 
 func (g *HMACGenerator) Generate(config map[string]interface{}) (map[string]string, error) {

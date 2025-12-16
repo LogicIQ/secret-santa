@@ -7,7 +7,6 @@ import (
 	"time"
 )
 
-// IDGenerator generates random IDs
 type IDGenerator struct{}
 
 func (g *IDGenerator) Generate(config map[string]interface{}) (map[string]string, error) {
