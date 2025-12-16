@@ -1,11 +1,19 @@
 FROM golang:1.25-alpine AS builder
 
 WORKDIR /workspace
+
+# Copy go mod files first for better caching
 COPY go.mod go.sum ./
 RUN go mod download
 
+# Copy source code
 COPY . .
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -a -o manager cmd/main.go
+
+# Build with cache mount and optimizations
+RUN --mount=type=cache,target=/root/.cache/go-build \
+    --mount=type=cache,target=/go/pkg/mod \
+    CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
+    go build -ldflags="-w -s" -o manager cmd/main.go
 
 FROM gcr.io/distroless/static:nonroot
 WORKDIR /

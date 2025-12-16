@@ -1,129 +1,53 @@
 version: '3'
 
 tasks:
-  build:
+  go:build:
     desc: Build the manager binary
     cmds:
       - go build -o bin/manager cmd/main.go
 
-  run:
-    desc: Run the manager locally
-    deps: [build]
-    cmds:
-      - ./bin/manager
-
-  test:
-    desc: Run tests
-    cmds:
-      - go test -v ./pkg/generators/...
-
-  test-coverage:
-    desc: Run tests with coverage
+  go:test:
+    desc: Run unit tests with coverage
     cmds:
       - go test -v -coverprofile=coverage.out ./pkg/generators/...
-      - go tool cover -html=coverage.out -o coverage.html
+      - go tool cover -func=coverage.out
 
-  manifests:
+  go:manifests:
     desc: Generate CRD manifests
     cmds:
-      - controller-gen crd rbac:roleName=manager-role webhook paths="./..." output:crd:artifacts:config=config/crd/bases
+      - export PATH=$PATH:$(go env GOPATH)/bin && controller-gen crd rbac:roleName=manager-role webhook paths="./..." output:crd:artifacts:config=config/crd/bases
 
-  install:
-    desc: Install CRDs into the cluster
-    deps: [manifests]
-    cmds:
-      - kubectl apply -f config/crd/bases
-
-  uninstall:
-    desc: Uninstall CRDs from the cluster
-    cmds:
-      - kubectl delete -f config/crd/bases
-
-  deploy-examples:
-    desc: Deploy examples
-    cmds:
-      - kubectl apply -f examples/
-
-  clean-examples:
-    desc: Clean up examples
-    cmds:
-      - kubectl delete -f examples/
-
-  e2e:install-deps:
-    desc: Install e2e dependencies
-    cmds:
-      - go install sigs.k8s.io/kind@latest
-      - go install sigs.k8s.io/controller-tools/cmd/controller-gen@latest
-
-  e2e:create-cluster:
-    desc: Create Kind cluster
-    cmds:
-      - kind create cluster --config=e2e/k8s/kind-config.yaml --name=secret-santa-e2e
-      - kubectl cluster-info --context kind-secret-santa-e2e
-
-  e2e:build-image:
-    desc: Build operator Docker image
+  docker:build:
+    desc: Build Docker image
     cmds:
       - docker build -t secret-santa:latest .
 
-  e2e:load-image:
-    desc: Load image into Kind cluster
-    deps: [e2e:build-image]
+  e2e:run:
+    desc: Run complete e2e test suite
     cmds:
+      # Setup
+      - go install sigs.k8s.io/kind@latest || echo "Kind already installed"
+      - go install sigs.k8s.io/controller-tools/cmd/controller-gen@latest || echo "Controller-gen already installed"
+      - kind create cluster --config=e2e/k8s/kind-config.yaml --name=secret-santa-e2e || echo "Cluster exists, reusing..."
+      - kubectl config use-context kind-secret-santa-e2e
+      
+      # Generate CRDs
+      - task: go:manifests
+      
+      # Deploy
+      - kubectl delete deployment secret-santa-controller -n secret-santa-system --ignore-not-found=true
+      - task: docker:build
       - kind load docker-image secret-santa:latest --name=secret-santa-e2e
-
-  e2e:generate-crd:
-    desc: Generate CRD manifests
-    cmds:
-      - controller-gen crd paths="./api/..." output:crd:artifacts:config=./config/crd
-
-  e2e:deploy-crd:
-    desc: Deploy CRDs
-    deps: [e2e:generate-crd]
-    cmds:
-      - kubectl apply -f config/crd/
-
-  e2e:deploy-rbac:
-    desc: Deploy RBAC
-    cmds:
-      - kubectl create namespace secret-santa-system --dry-run=client -o yaml | kubectl apply -f -
+      - kubectl create namespace secret-santa-system --dry-run=client -o yaml | kubectl apply -f - || echo "Namespace exists"
+      - kubectl apply -f config/crd/bases/
       - kubectl apply -f config/rbac/
-
-  e2e:deploy-manager:
-    desc: Deploy operator manager
-    cmds:
       - kubectl apply -f config/manager/
-
-  e2e:wait-ready:
-    desc: Wait for operator to be ready
-    cmds:
-      - kubectl wait --for=condition=available --timeout=300s deployment/secret-santa-controller -n secret-santa-system
-
-  e2e:setup:
-    desc: Setup complete Kind e2e environment
-    deps: [e2e:install-deps]
-    cmds:
-      - task: e2e:create-cluster
-      - task: e2e:load-image
-      - task: e2e:deploy-crd
-      - task: e2e:deploy-rbac
-      - task: e2e:deploy-manager
-      - task: e2e:wait-ready
-
-  e2e:test:
-    desc: Run e2e tests
-    dir: e2e/k8s
-    cmds:
-      - go test -v ./... -tags=e2e
+      - kubectl wait --for=condition=available --timeout=180s deployment/secret-santa-controller -n secret-santa-system
+      
+      # Test
+      - cd e2e/k8s && go mod tidy && go test -v ./... -tags=e2e
 
   e2e:cleanup:
-    desc: Cleanup Kind cluster
+    desc: Cleanup e2e environment
     cmds:
-      - kind delete cluster --name=secret-santa-e2e
-
-  e2e:run:
-    desc: Run full e2e test suite
-    cmds:
-      - task: e2e:setup
-      - task: e2e:test
-      - task: e2e:cleanup
+      - kind delete cluster --name=secret-santa-e2e || echo "Cluster doesn't exist"

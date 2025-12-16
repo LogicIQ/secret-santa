@@ -9,6 +9,7 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
+	"strings"
 	"golang.org/x/crypto/ssh"
 )
 
@@ -16,7 +17,7 @@ import (
 type PrivateKeyGenerator struct{}
 
 func (g *PrivateKeyGenerator) Generate(config map[string]interface{}) (map[string]string, error) {
-	algorithm := getStringConfig(config, "algorithm", "RSA")
+	algorithm := strings.ToUpper(strings.TrimSpace(getStringConfig(config, "algorithm", "RSA")))
 
 	switch algorithm {
 	case "RSA":
@@ -26,7 +27,7 @@ func (g *PrivateKeyGenerator) Generate(config map[string]interface{}) (map[strin
 	case "ED25519":
 		return g.generateED25519(config)
 	default:
-		return nil, fmt.Errorf("unsupported algorithm: %s", algorithm)
+		return nil, fmt.Errorf("unsupported algorithm: %s (supported: RSA, ECDSA, ED25519)", algorithm)
 	}
 }
 
@@ -81,7 +82,7 @@ func (g *PrivateKeyGenerator) generateRSA(config map[string]interface{}) (map[st
 }
 
 func (g *PrivateKeyGenerator) generateECDSA(config map[string]interface{}) (map[string]string, error) {
-	curve := getStringConfig(config, "ecdsa_curve", "P224")
+	curve := strings.ToUpper(strings.TrimSpace(getStringConfig(config, "ecdsa_curve", "P224")))
 
 	var ellipticCurve elliptic.Curve
 	switch curve {

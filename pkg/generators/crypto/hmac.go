@@ -9,13 +9,14 @@ import (
 	"encoding/hex"
 	"fmt"
 	"hash"
+	"strings"
 )
 
 // HMACGenerator generates HMAC signatures
 type HMACGenerator struct{}
 
 func (g *HMACGenerator) Generate(config map[string]interface{}) (map[string]string, error) {
-	algorithm := getStringConfig(config, "algorithm", "sha256")
+	algorithm := strings.ToLower(strings.TrimSpace(getStringConfig(config, "algorithm", "sha256")))
 	keySize := getIntConfig(config, "key_size", 32)
 	message := getStringConfig(config, "message", "")
 
@@ -33,7 +34,7 @@ func (g *HMACGenerator) Generate(config map[string]interface{}) (map[string]stri
 	case "sha512":
 		hashFunc = sha512.New
 	default:
-		return nil, fmt.Errorf("unsupported algorithm: %s", algorithm)
+		return nil, fmt.Errorf("unsupported algorithm: %s (supported: sha256, sha512)", algorithm)
 	}
 
 	// Generate HMAC

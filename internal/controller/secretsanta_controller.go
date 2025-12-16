@@ -3,7 +3,9 @@ package controller
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
+	"strings"
 	"text/template"
 	"time"
 
@@ -94,6 +96,34 @@ func (r *SecretSantaReconciler) reconcileSecret(ctx context.Context, secretSanta
 	log := log.FromContext(ctx)
 	log.V(1).Info("Reconciling secret", "templateLength", len(secretSanta.Spec.Template))
 
+	// Check if we already processed this SecretSanta successfully
+	for _, condition := range secretSanta.Status.Conditions {
+		if condition.Type == "Ready" && condition.Status == metav1.ConditionTrue {
+			log.V(1).Info("Secret already processed - create-once policy enforced")
+			return ctrl.Result{}, nil
+		}
+	}
+
+	// Determine secret name
+	secretName := secretSanta.Spec.SecretName
+	if secretName == "" {
+		secretName = secretSanta.Name
+	}
+
+	// Check if secret already exists (created outside this controller)
+	var existingSecret corev1.Secret
+	err := r.Get(ctx, client.ObjectKey{Name: secretName, Namespace: secretSanta.Namespace}, &existingSecret)
+	if err == nil {
+		log.Info("Secret already exists - create-once policy enforced")
+		metrics.RecordSecretSkipped(secretSanta.Namespace, secretSanta.Name)
+		if updateErr := r.updateStatus(ctx, secretSanta, "Ready", "True", "Secret already exists"); updateErr != nil {
+			log.Error(updateErr, "Failed to update status")
+		}
+		return ctrl.Result{}, nil
+	} else if !errors.IsNotFound(err) {
+		return ctrl.Result{}, err
+	}
+
 	templateData, err := r.generateTemplateData(secretSanta.Spec.Generators)
 	if err != nil {
 		log.Error(err, "Failed to generate template data")
@@ -130,7 +160,7 @@ func (r *SecretSantaReconciler) reconcileSecret(ctx context.Context, secretSanta
 		return ctrl.Result{}, nil
 	}
 
-	return r.createOrUpdateSecret(ctx, secretSanta, secretData)
+	return r.createOrUpdateSecret(ctx, secretSanta, secretData, secretName)
 }
 
 func (r *SecretSantaReconciler) executeTemplate(tmplStr string, data map[string]interface{}) (string, error) {
@@ -147,35 +177,41 @@ func (r *SecretSantaReconciler) executeTemplate(tmplStr string, data map[string]
 	return buf.String(), nil
 }
 
-func (r *SecretSantaReconciler) createOrUpdateSecret(ctx context.Context, secretSanta *secretsantav1alpha1.SecretSanta, data string) (ctrl.Result, error) {
+func (r *SecretSantaReconciler) createOrUpdateSecret(ctx context.Context, secretSanta *secretsantav1alpha1.SecretSanta, data string, secretName string) (ctrl.Result, error) {
 	log := log.FromContext(ctx)
+
+	// Handle TLS secrets specially
+	stringData := map[string]string{}
+	if secretSanta.Spec.SecretType == "kubernetes.io/tls" {
+		// For TLS secrets, parse the template output to extract tls.crt and tls.key
+		lines := strings.Split(data, "\n")
+		for _, line := range lines {
+			if strings.HasPrefix(line, "tls.crt:") {
+				stringData["tls.crt"] = strings.TrimSpace(strings.TrimPrefix(line, "tls.crt:"))
+			} else if strings.HasPrefix(line, "tls.key:") {
+				stringData["tls.key"] = strings.TrimSpace(strings.TrimPrefix(line, "tls.key:"))
+			}
+		}
+		// If we don't have the required fields, fall back to data field
+		if stringData["tls.crt"] == "" || stringData["tls.key"] == "" {
+			stringData = map[string]string{"data": data}
+		}
+	} else {
+		stringData["data"] = data
+	}
 
 	secret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:        secretSanta.Name,
+			Name:        secretName,
 			Namespace:   secretSanta.Namespace,
 			Labels:      secretSanta.Spec.Labels,
 			Annotations: secretSanta.Spec.Annotations,
 		},
-		Type: corev1.SecretType(secretSanta.Spec.SecretType),
-		StringData: map[string]string{
-			"data": data,
-		},
-	}
-
-	if err := ctrl.SetControllerReference(secretSanta, secret, r.Scheme); err != nil {
-		return ctrl.Result{}, err
+		Type:       corev1.SecretType(secretSanta.Spec.SecretType),
+		StringData: stringData,
 	}
 
 	if err := r.Client.Create(ctx, secret); err != nil {
-		if errors.IsAlreadyExists(err) {
-			log.Info("Secret already exists - create-once policy enforced")
-			metrics.RecordSecretSkipped(secretSanta.Namespace, secretSanta.Name)
-			if updateErr := r.updateStatus(ctx, secretSanta, "Ready", "True", "Secret already exists"); updateErr != nil {
-				log.Error(updateErr, "Failed to update status")
-			}
-			return ctrl.Result{}, nil
-		}
 		if updateErr := r.updateStatus(ctx, secretSanta, "SecretCreationFailed", "False", err.Error()); updateErr != nil {
 			log.Error(updateErr, "Failed to update status")
 		}
@@ -250,9 +286,20 @@ func (r *SecretSantaReconciler) generateTemplateData(generatorConfigs []secretsa
 			continue
 		}
 
-		log.V(1).Info("Executing generator", "config", config.Config)
+		// Convert RawExtension to map[string]interface{}
+		var configMap map[string]interface{}
+		if config.Config != nil && len(config.Config.Raw) > 0 {
+			if err := json.Unmarshal(config.Config.Raw, &configMap); err != nil {
+				return nil, fmt.Errorf("failed to unmarshal config for generator %s: %w", config.Name, err)
+			}
+		}
+		if configMap == nil {
+			configMap = make(map[string]interface{})
+		}
+
+		log.V(1).Info("Executing generator", "config", configMap)
 		timer := metrics.NewGeneratorTimer(config.Type)
-		result, err := gen.Generate(config.Config)
+		result, err := gen.Generate(configMap)
 		timer.ObserveDuration()
 		if err != nil {
 			log.Error(err, "Generator failed")
@@ -343,7 +390,12 @@ func (r *SecretSantaReconciler) updateStatus(ctx context.Context, secretSanta *s
 		})
 	}
 
-	return r.Status().Update(ctx, secretSanta)
+	err := r.Status().Update(ctx, secretSanta)
+	if errors.IsNotFound(err) {
+		// Resource was deleted, ignore the error
+		return nil
+	}
+	return err
 }
 
 
@@ -359,6 +411,5 @@ func getMapKeys(m map[string]string) []string {
 func (r *SecretSantaReconciler) SetupWithManager(mgr ctrl.Manager, maxConcurrentReconciles int) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&secretsantav1alpha1.SecretSanta{}).
-		Owns(&corev1.Secret{}).
 		Complete(r)
 }

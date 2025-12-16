@@ -4,8 +4,7 @@ package k8s
 
 import (
 	"context"
-	"encoding/base64"
-	"encoding/pem"
+	"strings"
 	"testing"
 	"time"
 
@@ -18,7 +17,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
 )
 
-func TestTLSCertificateGenerator(t *testing.T) {
+func TestSimpleRandomPassword(t *testing.T) {
 	cfg, err := config.GetConfig()
 	if err != nil {
 		t.Fatalf("Failed to get config: %v", err)
@@ -35,9 +34,8 @@ func TestTLSCertificateGenerator(t *testing.T) {
 	}
 
 	namespace := "default"
-	name := "test-tls-cert"
+	name := "simple-password-test"
 
-	// Create SecretSanta CR for TLS certificate
 	secretSanta := &unstructured.Unstructured{
 		Object: map[string]interface{}{
 			"apiVersion": "secrets.secret-santa.io/v1alpha1",
@@ -47,25 +45,17 @@ func TestTLSCertificateGenerator(t *testing.T) {
 				"namespace": namespace,
 			},
 			"spec": map[string]interface{}{
-				"template": "tls.crt: {{ .TLSCert.cert_pem | b64enc }}\ntls.key: {{ .PrivateKey.private_key_pem | b64enc }}",
+				"template": `password: {{ .Password.value }}`,
 				"generators": []interface{}{
 					map[string]interface{}{
-						"name": "PrivateKey",
-						"type": "tls_private_key",
+						"name": "Password",
+						"type": "random_password",
 						"config": map[string]interface{}{
-							"algorithm": "RSA",
-							"rsa_bits":  float64(2048),
-						},
-					},
-					map[string]interface{}{
-						"name": "TLSCert",
-						"type": "tls_self_signed_cert",
-						"config": map[string]interface{}{
-							"common_name": "test.example.com",
+							"length": float64(16),
 						},
 					},
 				},
-				"secretType": "kubernetes.io/tls",
+				"secretType": "Opaque",
 			},
 		},
 	}
@@ -74,8 +64,8 @@ func TestTLSCertificateGenerator(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create SecretSanta: %v", err)
 	}
+	defer dynClient.Resource(secretSantaGVR).Namespace(namespace).Delete(context.TODO(), name, metav1.DeleteOptions{})
 
-	// Wait for secret to be created
 	err = wait.PollImmediate(2*time.Second, 60*time.Second, func() (bool, error) {
 		_, err := client.CoreV1().Secrets(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 		return err == nil, nil
@@ -84,48 +74,19 @@ func TestTLSCertificateGenerator(t *testing.T) {
 		t.Fatalf("Secret was not created: %v", err)
 	}
 
-	// Verify secret content
 	secret, err := client.CoreV1().Secrets(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 	if err != nil {
 		t.Fatalf("Failed to get secret: %v", err)
 	}
 
-	if secret.Type != corev1.SecretTypeTLS {
-		t.Errorf("Expected secret type kubernetes.io/tls, got %s", secret.Type)
+	if secret.Type != corev1.SecretTypeOpaque {
+		t.Errorf("Expected secret type Opaque, got %s", secret.Type)
 	}
 
-	// Verify TLS certificate format
-	certData, ok := secret.Data["tls.crt"]
-	if !ok {
-		t.Error("Missing tls.crt in secret")
+	data := string(secret.Data["data"])
+	if !strings.Contains(data, "password:") {
+		t.Errorf("Password not found in secret data")
 	}
 
-	keyData, ok := secret.Data["tls.key"]
-	if !ok {
-		t.Error("Missing tls.key in secret")
-	}
-
-	// Decode and validate PEM format
-	certDecoded, err := base64.StdEncoding.DecodeString(string(certData))
-	if err != nil {
-		t.Fatalf("Failed to decode certificate: %v", err)
-	}
-
-	block, _ := pem.Decode(certDecoded)
-	if block == nil || block.Type != "CERTIFICATE" {
-		t.Error("Invalid certificate PEM format")
-	}
-
-	keyDecoded, err := base64.StdEncoding.DecodeString(string(keyData))
-	if err != nil {
-		t.Fatalf("Failed to decode private key: %v", err)
-	}
-
-	keyBlock, _ := pem.Decode(keyDecoded)
-	if keyBlock == nil || keyBlock.Type != "RSA PRIVATE KEY" {
-		t.Error("Invalid private key PEM format")
-	}
-
-	// Cleanup
-	dynClient.Resource(secretSantaGVR).Namespace(namespace).Delete(context.TODO(), name, metav1.DeleteOptions{})
+	t.Logf("Test passed! Secret data: %s", data)
 }

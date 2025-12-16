@@ -1,90 +1,13 @@
 version: '3'
 
-vars:
-  CLUSTER_NAME: secret-santa-e2e
-  IMAGE_NAME: secret-santa:latest
-  NAMESPACE: secret-santa-system
-
 tasks:
-  install-deps:
-    desc: Install Kind and controller-gen
-    cmds:
-      - go install sigs.k8s.io/kind@latest
-      - go install sigs.k8s.io/controller-tools/cmd/controller-gen@latest
-
-  create-cluster:
-    desc: Create Kind cluster
-    cmds:
-      - kind create cluster --config=kind-config.yaml --name={{.CLUSTER_NAME}}
-      - kubectl cluster-info --context kind-{{.CLUSTER_NAME}}
-
-  build-image:
-    desc: Build operator Docker image
-    dir: ../..
-    cmds:
-      - docker build -t {{.IMAGE_NAME}} .
-
-  load-image:
-    desc: Load image into Kind cluster
-    deps: [build-image]
-    cmds:
-      - kind load docker-image {{.IMAGE_NAME}} --name={{.CLUSTER_NAME}}
-
-  generate-crd:
-    desc: Generate CRD manifests
-    dir: ../..
-    cmds:
-      - controller-gen crd paths="./api/..." output:crd:artifacts:config=./config/crd
-
-  deploy-crd:
-    desc: Deploy CRDs
-    deps: [generate-crd]
-    dir: ../..
-    cmds:
-      - kubectl apply -f config/crd/
-
-  deploy-rbac:
-    desc: Deploy RBAC
-    dir: ../..
-    cmds:
-      - kubectl create namespace {{.NAMESPACE}} --dry-run=client -o yaml | kubectl apply -f -
-      - kubectl apply -f config/rbac/
-
-  deploy-manager:
-    desc: Deploy operator manager
-    dir: ../..
-    cmds:
-      - kubectl apply -f config/manager/
-
-  wait-ready:
-    desc: Wait for operator to be ready
-    cmds:
-      - kubectl wait --for=condition=available --timeout=300s deployment/secret-santa-controller -n {{.NAMESPACE}}
-
-  setup:
-    desc: Setup complete Kind e2e environment
-    deps: [install-deps]
-    cmds:
-      - task: create-cluster
-      - task: load-image
-      - task: deploy-crd
-      - task: deploy-rbac
-      - task: deploy-manager
-      - task: wait-ready
-
   test:
-    desc: Run e2e tests
+    desc: Run e2e tests only
     cmds:
+      - go mod tidy
       - go test -v ./... -tags=e2e
 
   cleanup:
-    desc: Cleanup Kind cluster
+    desc: Cleanup e2e environment
     cmds:
-      - kind delete cluster --name={{.CLUSTER_NAME}}
-
-  e2e:
-    desc: Run full e2e test suite
-    cmds:
-      - task: setup
-      - task: test
-      - task: cleanup
+      - kind delete cluster --name=secret-santa-e2e || echo "Cluster doesn't exist"

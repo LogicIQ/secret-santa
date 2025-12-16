@@ -1,9 +1,10 @@
 //go:build e2e
 
-package k8s
+package time
 
 import (
 	"context"
+	"strings"
 	"testing"
 	"time"
 
@@ -25,7 +26,7 @@ var (
 	}
 )
 
-func TestRandomPasswordGenerator(t *testing.T) {
+func TestTimeStaticGenerator(t *testing.T) {
 	cfg, err := config.GetConfig()
 	if err != nil {
 		t.Fatalf("Failed to get config: %v", err)
@@ -42,9 +43,8 @@ func TestRandomPasswordGenerator(t *testing.T) {
 	}
 
 	namespace := "default"
-	name := "test-random-password"
+	name := "e2e-time-static-test"
 
-	// Create SecretSanta CR
 	secretSanta := &unstructured.Unstructured{
 		Object: map[string]interface{}{
 			"apiVersion": "secrets.secret-santa.io/v1alpha1",
@@ -54,13 +54,19 @@ func TestRandomPasswordGenerator(t *testing.T) {
 				"namespace": namespace,
 			},
 			"spec": map[string]interface{}{
-				"template": "password: {{ .Password.value }}\nbcrypt_hash: {{ .Password.value | bcrypt }}\nlength: {{ len .Password.value }}\nentropy: {{ entropy .Password.value .Password.charset | printf \"%.2f\" }}",
+				"template": `timestamp: {{ .Timestamp.value }}
+timezone: {{ .Timestamp.timezone }}
+epoch: {{ .Timestamp.epoch }}
+iso8601: {{ .Timestamp.iso8601 }}
+formatted: {{ .Timestamp.formatted }}
+rfc3339: {{ .Timestamp.rfc3339 }}`,
 				"generators": []interface{}{
 					map[string]interface{}{
-						"name": "Password",
-						"type": "random_password",
+						"name": "Timestamp",
+						"type": "time_static",
 						"config": map[string]interface{}{
-							"length": float64(32),
+							"timezone": "UTC",
+							"format":   "2006-01-02 15:04:05",
 						},
 					},
 				},
@@ -75,7 +81,6 @@ func TestRandomPasswordGenerator(t *testing.T) {
 	}
 	defer dynClient.Resource(secretSantaGVR).Namespace(namespace).Delete(context.TODO(), name, metav1.DeleteOptions{})
 
-	// Wait for secret to be created
 	err = wait.PollImmediate(2*time.Second, 60*time.Second, func() (bool, error) {
 		_, err := client.CoreV1().Secrets(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 		return err == nil, nil
@@ -84,7 +89,6 @@ func TestRandomPasswordGenerator(t *testing.T) {
 		t.Fatalf("Secret was not created: %v", err)
 	}
 
-	// Verify secret content
 	secret, err := client.CoreV1().Secrets(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 	if err != nil {
 		t.Fatalf("Failed to get secret: %v", err)
@@ -94,7 +98,11 @@ func TestRandomPasswordGenerator(t *testing.T) {
 		t.Errorf("Expected secret type Opaque, got %s", secret.Type)
 	}
 
-	if len(secret.Data["data"]) == 0 {
-		t.Error("Secret data is empty")
+	data := string(secret.Data["data"])
+	expectedFields := []string{"timestamp:", "timezone:", "epoch:", "iso8601:", "formatted:", "rfc3339:"}
+	for _, field := range expectedFields {
+		if !strings.Contains(data, field) {
+			t.Errorf("Field %s not found in secret data", field)
+		}
 	}
 }

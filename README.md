@@ -1,10 +1,14 @@
 # secret-santa
 Kubernetes operator for sensitive data generation with Go template support
 
+> **⚠️ Development Version Warning**  
+> This is a development version and should **NOT** be used in production environments. The API and functionality may change without notice.
+
 ## Features
 
 ### Core Functionality
-- **Create-Once Policy**: Secrets are generated once and never modified
+- **Create-Once Policy**: Secrets are generated once and never modified or touched again
+- **Independent Lifecycle**: Secrets have no ownership references and persist independently of SecretSanta resources
 - **Go Template Engine**: Full Go template support with custom functions
 - **Template Validation**: Pre-validates templates before execution with user-friendly errors
 - **Multiple Generators**: TLS, crypto, random, time-based data generation
@@ -174,3 +178,18 @@ SECRET_SANTA_EXCLUDE_ANNOTATIONS=secret-santa.io/ignore=true,deprecated
 SECRET_SANTA_INCLUDE_LABELS=environment=production,tier=backend
 SECRET_SANTA_EXCLUDE_LABELS=skip=true,environment=development
 ```
+
+## Secret Lifecycle
+
+### Create-Once Policy
+- Secrets are generated **exactly once** when the SecretSanta resource is first processed
+- If a secret already exists, it is **never modified** - the operator skips creation
+- No ownership references are set on secrets, making them completely independent
+
+### Independent Lifecycle
+- **No Controller References**: Secrets do not reference their creating SecretSanta resource
+- **No Ownership**: Deleting a SecretSanta resource does not delete the generated secret
+- **No Reconciliation**: The operator never reconciles or watches secret changes
+- **Persistent**: Secrets remain in the cluster until manually deleted
+
+This design ensures maximum security and stability - once created, secrets are never touched by the operator again.

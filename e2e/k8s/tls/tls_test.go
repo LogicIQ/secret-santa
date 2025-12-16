@@ -1,9 +1,11 @@
 //go:build e2e
 
-package k8s
+package tls
 
 import (
 	"context"
+	"encoding/base64"
+	"encoding/pem"
 	"strings"
 	"testing"
 	"time"
@@ -11,13 +13,22 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
 )
 
-func TestE2ECryptoGenerators(t *testing.T) {
+var (
+	secretSantaGVR = schema.GroupVersionResource{
+		Group:    "secrets.secret-santa.io",
+		Version:  "v1alpha1",
+		Resource: "secretsanta",
+	}
+)
+
+func TestTLSCertificateGenerator(t *testing.T) {
 	cfg, err := config.GetConfig()
 	if err != nil {
 		t.Fatalf("Failed to get config: %v", err)
@@ -34,8 +45,9 @@ func TestE2ECryptoGenerators(t *testing.T) {
 	}
 
 	namespace := "default"
-	name := "e2e-crypto-test"
+	name := "test-tls-cert"
 
+	// Create SecretSanta CR for TLS certificate
 	secretSanta := &unstructured.Unstructured{
 		Object: map[string]interface{}{
 			"apiVersion": "secrets.secret-santa.io/v1alpha1",
@@ -45,102 +57,11 @@ func TestE2ECryptoGenerators(t *testing.T) {
 				"namespace": namespace,
 			},
 			"spec": map[string]interface{}{
-				"template": `aes_key: {{ .AESKey.key_base64 }}
-aes_key_hex: {{ .AESKey.key_hex }}
-hmac_key: {{ .HMACKey.key_base64 }}
-hmac_signature: {{ .HMACKey.signature_hex }}
-rsa_private_key: {{ .RSAKey.private_key }}
-rsa_public_key: {{ .RSAKey.public_key }}`,
+				"template": `tls.crt: {{ .TLSCert.cert_pem | b64enc }}
+tls.key: {{ .PrivateKey.private_key_pem | b64enc }}`,
 				"generators": []interface{}{
 					map[string]interface{}{
-						"name": "AESKey",
-						"type": "crypto_aes_key",
-						"config": map[string]interface{}{
-							"key_size": float64(256),
-						},
-					},
-					map[string]interface{}{
-						"name": "HMACKey",
-						"type": "crypto_hmac",
-						"config": map[string]interface{}{
-							"algorithm": "sha256",
-							"key_size":  float64(32),
-						},
-					},
-					map[string]interface{}{
-						"name": "RSAKey",
-						"type": "crypto_rsa_key",
-						"config": map[string]interface{}{
-							"key_size": float64(2048),
-						},
-					},
-				},
-				"secretType": "Opaque",
-			},
-		},
-	}
-
-	_, err = dynClient.Resource(secretSantaGVR).Namespace(namespace).Create(context.TODO(), secretSanta, metav1.CreateOptions{})
-	if err != nil {
-		t.Fatalf("Failed to create SecretSanta: %v", err)
-	}
-	defer dynClient.Resource(secretSantaGVR).Namespace(namespace).Delete(context.TODO(), name, metav1.DeleteOptions{})
-
-	err = wait.PollImmediate(2*time.Second, 60*time.Second, func() (bool, error) {
-		_, err := client.CoreV1().Secrets(namespace).Get(context.TODO(), name, metav1.GetOptions{})
-		return err == nil, nil
-	})
-	if err != nil {
-		t.Fatalf("Secret was not created: %v", err)
-	}
-
-	secret, err := client.CoreV1().Secrets(namespace).Get(context.TODO(), name, metav1.GetOptions{})
-	if err != nil {
-		t.Fatalf("Failed to get secret: %v", err)
-	}
-
-	data := string(secret.Data["data"])
-	expectedFields := []string{"aes_key:", "aes_key_hex:", "hmac_key:", "hmac_signature:", "rsa_private_key:", "rsa_public_key:"}
-	for _, field := range expectedFields {
-		if !strings.Contains(data, field) {
-			t.Errorf("Field %s not found in secret data", field)
-		}
-	}
-}
-
-func TestE2ETLSGenerators(t *testing.T) {
-	cfg, err := config.GetConfig()
-	if err != nil {
-		t.Fatalf("Failed to get config: %v", err)
-	}
-
-	client, err := kubernetes.NewForConfig(cfg)
-	if err != nil {
-		t.Fatalf("Failed to create client: %v", err)
-	}
-
-	dynClient, err := dynamic.NewForConfig(cfg)
-	if err != nil {
-		t.Fatalf("Failed to create dynamic client: %v", err)
-	}
-
-	namespace := "default"
-	name := "e2e-tls-test"
-
-	secretSanta := &unstructured.Unstructured{
-		Object: map[string]interface{}{
-			"apiVersion": "secrets.secret-santa.io/v1alpha1",
-			"kind":       "SecretSanta",
-			"metadata": map[string]interface{}{
-				"name":      name,
-				"namespace": namespace,
-			},
-			"spec": map[string]interface{}{
-				"template": `tls.key: {{ .TLSKey.private_key_pem }}
-tls.crt: {{ .TLSCert.cert_pem }}`,
-				"generators": []interface{}{
-					map[string]interface{}{
-						"name": "TLSKey",
+						"name": "PrivateKey",
 						"type": "tls_private_key",
 						"config": map[string]interface{}{
 							"algorithm": "RSA",
@@ -151,12 +72,7 @@ tls.crt: {{ .TLSCert.cert_pem }}`,
 						"name": "TLSCert",
 						"type": "tls_self_signed_cert",
 						"config": map[string]interface{}{
-							"key_algorithm": "RSA",
-							"rsa_bits":      float64(2048),
-							"subject": map[string]interface{}{
-								"common_name": "example.com",
-							},
-							"validity_period_hours": float64(8760),
+							"common_name": "test.example.com",
 						},
 					},
 				},
@@ -171,6 +87,7 @@ tls.crt: {{ .TLSCert.cert_pem }}`,
 	}
 	defer dynClient.Resource(secretSantaGVR).Namespace(namespace).Delete(context.TODO(), name, metav1.DeleteOptions{})
 
+	// Wait for secret to be created
 	err = wait.PollImmediate(2*time.Second, 60*time.Second, func() (bool, error) {
 		_, err := client.CoreV1().Secrets(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 		return err == nil, nil
@@ -179,6 +96,7 @@ tls.crt: {{ .TLSCert.cert_pem }}`,
 		t.Fatalf("Secret was not created: %v", err)
 	}
 
+	// Verify secret content
 	secret, err := client.CoreV1().Secrets(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 	if err != nil {
 		t.Fatalf("Failed to get secret: %v", err)
@@ -188,16 +106,40 @@ tls.crt: {{ .TLSCert.cert_pem }}`,
 		t.Errorf("Expected secret type kubernetes.io/tls, got %s", secret.Type)
 	}
 
-	// Check TLS secret fields
-	if _, ok := secret.Data["tls.crt"]; !ok {
-		t.Error("Missing tls.crt in TLS secret")
+	// Verify TLS certificate format
+	certData, ok := secret.Data["tls.crt"]
+	if !ok {
+		t.Error("Missing tls.crt in secret")
 	}
-	if _, ok := secret.Data["tls.key"]; !ok {
-		t.Error("Missing tls.key in TLS secret")
+
+	keyData, ok := secret.Data["tls.key"]
+	if !ok {
+		t.Error("Missing tls.key in secret")
+	}
+
+	// Decode and validate PEM format
+	certDecoded, err := base64.StdEncoding.DecodeString(string(certData))
+	if err != nil {
+		t.Fatalf("Failed to decode certificate: %v", err)
+	}
+
+	block, _ := pem.Decode(certDecoded)
+	if block == nil || block.Type != "CERTIFICATE" {
+		t.Error("Invalid certificate PEM format")
+	}
+
+	keyDecoded, err := base64.StdEncoding.DecodeString(string(keyData))
+	if err != nil {
+		t.Fatalf("Failed to decode private key: %v", err)
+	}
+
+	keyBlock, _ := pem.Decode(keyDecoded)
+	if keyBlock == nil || keyBlock.Type != "RSA PRIVATE KEY" {
+		t.Error("Invalid private key PEM format")
 	}
 }
 
-func TestE2ETimeGenerator(t *testing.T) {
+func TestTLSPrivateKeyOnly(t *testing.T) {
 	cfg, err := config.GetConfig()
 	if err != nil {
 		t.Fatalf("Failed to get config: %v", err)
@@ -214,7 +156,7 @@ func TestE2ETimeGenerator(t *testing.T) {
 	}
 
 	namespace := "default"
-	name := "e2e-time-test"
+	name := "e2e-tls-private-key-test"
 
 	secretSanta := &unstructured.Unstructured{
 		Object: map[string]interface{}{
@@ -225,18 +167,15 @@ func TestE2ETimeGenerator(t *testing.T) {
 				"namespace": namespace,
 			},
 			"spec": map[string]interface{}{
-				"template": `timestamp: {{ .Timestamp.rfc3339 }}
-unix: {{ .Timestamp.unix }}
-year: {{ .Timestamp.year }}
-month: {{ .Timestamp.month }}
-day: {{ .Timestamp.day }}`,
+				"template": `private_key: {{ .PrivateKey.private_key_pem }}
+public_key: {{ .PrivateKey.public_key_pem }}`,
 				"generators": []interface{}{
 					map[string]interface{}{
-						"name": "Timestamp",
-						"type": "time_static",
+						"name": "PrivateKey",
+						"type": "tls_private_key",
 						"config": map[string]interface{}{
-							"timezone": "UTC",
-							"format":   "2006-01-02 15:04:05",
+							"algorithm": "RSA",
+							"rsa_bits":  float64(2048),
 						},
 					},
 				},
@@ -265,7 +204,7 @@ day: {{ .Timestamp.day }}`,
 	}
 
 	data := string(secret.Data["data"])
-	expectedFields := []string{"timestamp:", "unix:", "year:", "month:", "day:"}
+	expectedFields := []string{"private_key:", "public_key:"}
 	for _, field := range expectedFields {
 		if !strings.Contains(data, field) {
 			t.Errorf("Field %s not found in secret data", field)
@@ -273,7 +212,7 @@ day: {{ .Timestamp.day }}`,
 	}
 }
 
-func TestE2ETemplateFunctions(t *testing.T) {
+func TestTLSSelfSignedCertOnly(t *testing.T) {
 	cfg, err := config.GetConfig()
 	if err != nil {
 		t.Fatalf("Failed to get config: %v", err)
@@ -290,7 +229,7 @@ func TestE2ETemplateFunctions(t *testing.T) {
 	}
 
 	namespace := "default"
-	name := "e2e-template-functions-test"
+	name := "e2e-tls-self-signed-cert-test"
 
 	secretSanta := &unstructured.Unstructured{
 		Object: map[string]interface{}{
@@ -301,53 +240,19 @@ func TestE2ETemplateFunctions(t *testing.T) {
 				"namespace": namespace,
 			},
 			"spec": map[string]interface{}{
-				"template": `password: {{ .Password.value }}
-password_bcrypt: {{ .Password.value | bcrypt }}
-password_sha256: {{ .Password.value | sha256 }}
-password_length: {{ len .Password.value }}
-password_entropy: {{ entropy .Password.value .Password.charset | printf "%.2f" }}
-password_crc32: {{ .Password.value | crc32 }}
-api_key: {{ .APIKey.value }}
-api_key_b64: {{ .APIKey.value | b64enc }}
-api_key_url_safe: {{ .APIKey.value | urlSafeB64 }}
-api_key_upper: {{ .APIKey.value | upper }}
-uuid: {{ .UUID.value }}
-uuid_compact: {{ .UUID.value | compact }}
-port: {{ .Port.value }}
-port_hex: {{ .Port.value | toHex }}
-port_binary: {{ .Port.value | toBinary }}
-{{- $entropy := entropy .Password.value .Password.charset }}
-{{- if gt $entropy 60.0 }}
-security_level: "high"
-{{- else }}
-security_level: "medium"
-{{- end }}`,
+				"template": `certificate: {{ .SelfSignedCert.cert_pem }}
+validity_start: {{ .SelfSignedCert.validity_start_time }}`,
 				"generators": []interface{}{
 					map[string]interface{}{
-						"name": "Password",
-						"type": "random_password",
+						"name": "SelfSignedCert",
+						"type": "tls_self_signed_cert",
 						"config": map[string]interface{}{
-							"length": float64(24),
-						},
-					},
-					map[string]interface{}{
-						"name": "APIKey",
-						"type": "random_string",
-						"config": map[string]interface{}{
-							"length":  float64(32),
-							"special": false,
-						},
-					},
-					map[string]interface{}{
-						"name": "UUID",
-						"type": "random_uuid",
-					},
-					map[string]interface{}{
-						"name": "Port",
-						"type": "random_integer",
-						"config": map[string]interface{}{
-							"min": float64(8000),
-							"max": float64(9000),
+							"key_algorithm": "RSA",
+							"rsa_bits":      float64(2048),
+							"subject": map[string]interface{}{
+								"common_name": "test.example.com",
+							},
+							"validity_period_hours": float64(8760),
 						},
 					},
 				},
@@ -376,17 +281,103 @@ security_level: "medium"
 	}
 
 	data := string(secret.Data["data"])
-	templateFunctions := []string{
-		"password_bcrypt:", "password_sha256:", "password_length:", "password_entropy:", "password_crc32:",
-		"api_key_b64:", "api_key_url_safe:", "api_key_upper:",
-		"uuid_compact:",
-		"port_hex:", "port_binary:",
-		"security_level:",
+	expectedFields := []string{"certificate:", "validity_start:"}
+	for _, field := range expectedFields {
+		if !strings.Contains(data, field) {
+			t.Errorf("Field %s not found in secret data", field)
+		}
+	}
+}
+
+func TestAllTLSGenerators(t *testing.T) {
+	cfg, err := config.GetConfig()
+	if err != nil {
+		t.Fatalf("Failed to get config: %v", err)
 	}
 
-	for _, field := range templateFunctions {
+	client, err := kubernetes.NewForConfig(cfg)
+	if err != nil {
+		t.Fatalf("Failed to create client: %v", err)
+	}
+
+	dynClient, err := dynamic.NewForConfig(cfg)
+	if err != nil {
+		t.Fatalf("Failed to create dynamic client: %v", err)
+	}
+
+	namespace := "default"
+	name := "e2e-all-tls-test"
+
+	secretSanta := &unstructured.Unstructured{
+		Object: map[string]interface{}{
+			"apiVersion": "secrets.secret-santa.io/v1alpha1",
+			"kind":       "SecretSanta",
+			"metadata": map[string]interface{}{
+				"name":      name,
+				"namespace": namespace,
+			},
+			"spec": map[string]interface{}{
+				"template": `# TLS Private Key
+private_key: {{ .PrivateKey.private_key_pem }}
+public_key: {{ .PrivateKey.public_key_pem }}
+
+# Self-Signed Certificate
+self_signed_cert: {{ .SelfSignedCert.cert_pem }}
+validity_start: {{ .SelfSignedCert.validity_start_time }}`,
+				"generators": []interface{}{
+					map[string]interface{}{
+						"name": "PrivateKey",
+						"type": "tls_private_key",
+						"config": map[string]interface{}{
+							"algorithm": "RSA",
+							"rsa_bits":  float64(2048),
+						},
+					},
+					map[string]interface{}{
+						"name": "SelfSignedCert",
+						"type": "tls_self_signed_cert",
+						"config": map[string]interface{}{
+							"key_algorithm": "RSA",
+							"rsa_bits":      float64(2048),
+							"subject": map[string]interface{}{
+								"common_name": "example.com",
+							},
+							"validity_period_hours": float64(8760),
+						},
+					},
+				},
+				"secretType": "Opaque",
+			},
+		},
+	}
+
+	_, err = dynClient.Resource(secretSantaGVR).Namespace(namespace).Create(context.TODO(), secretSanta, metav1.CreateOptions{})
+	if err != nil {
+		t.Fatalf("Failed to create SecretSanta: %v", err)
+	}
+	defer dynClient.Resource(secretSantaGVR).Namespace(namespace).Delete(context.TODO(), name, metav1.DeleteOptions{})
+
+	err = wait.PollImmediate(2*time.Second, 60*time.Second, func() (bool, error) {
+		_, err := client.CoreV1().Secrets(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+		return err == nil, nil
+	})
+	if err != nil {
+		t.Fatalf("Secret was not created: %v", err)
+	}
+
+	secret, err := client.CoreV1().Secrets(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+	if err != nil {
+		t.Fatalf("Failed to get secret: %v", err)
+	}
+
+	data := string(secret.Data["data"])
+	expectedFields := []string{
+		"private_key:", "public_key:",
+		"self_signed_cert:", "validity_start:",
+	}
+	for _, field := range expectedFields {
 		if !strings.Contains(data, field) {
-			t.Errorf("Template function result %s not found in secret data", field)
+			t.Errorf("Field %s not found in secret data", field)
 		}
 	}
 }

@@ -12,7 +12,7 @@ rules:
 - apiGroups:
   - secrets.secret-santa.io
   resources:
-  - secretsantas
+  - secretsanta
   verbs:
   - create
   - delete
@@ -24,13 +24,13 @@ rules:
 - apiGroups:
   - secrets.secret-santa.io
   resources:
-  - secretsantas/finalizers
+  - secretsanta/finalizers
   verbs:
   - update
 - apiGroups:
   - secrets.secret-santa.io
   resources:
-  - secretsantas/status
+  - secretsanta/status
   verbs:
   - get
   - patch

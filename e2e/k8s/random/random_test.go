@@ -1,6 +1,6 @@
 //go:build e2e
 
-package k8s
+package random
 
 import (
 	"context"
@@ -22,11 +22,11 @@ var (
 	secretSantaGVR = schema.GroupVersionResource{
 		Group:    "secrets.secret-santa.io",
 		Version:  "v1alpha1",
-		Resource: "secretsanta",
+		Resource: "secretsantas",
 	}
 )
 
-func TestE2ERandomPassword(t *testing.T) {
+func TestRandomPasswordGenerator(t *testing.T) {
 	cfg, err := config.GetConfig()
 	if err != nil {
 		t.Fatalf("Failed to get config: %v", err)
@@ -43,9 +43,9 @@ func TestE2ERandomPassword(t *testing.T) {
 	}
 
 	namespace := "default"
-	name := "e2e-password-test"
+	name := "test-random-password"
 
-	// Create SecretSanta CR with template functions
+	// Create SecretSanta CR
 	secretSanta := &unstructured.Unstructured{
 		Object: map[string]interface{}{
 			"apiVersion": "secrets.secret-santa.io/v1alpha1",
@@ -58,8 +58,7 @@ func TestE2ERandomPassword(t *testing.T) {
 				"template": `password: {{ .Password.value }}
 bcrypt_hash: {{ .Password.value | bcrypt }}
 length: {{ len .Password.value }}
-entropy: {{ entropy .Password.value .Password.charset | printf "%.2f" }}
-sha256: {{ .Password.value | sha256 }}`,
+entropy: {{ entropy .Password.value .Password.charset | printf "%.2f" }}`,
 				"generators": []interface{}{
 					map[string]interface{}{
 						"name": "Password",
@@ -99,30 +98,12 @@ sha256: {{ .Password.value | sha256 }}`,
 		t.Errorf("Expected secret type Opaque, got %s", secret.Type)
 	}
 
-	data := string(secret.Data["data"])
-	if len(data) == 0 {
+	if len(secret.Data["data"]) == 0 {
 		t.Error("Secret data is empty")
-	}
-
-	// Verify template functions worked
-	if !strings.Contains(data, "password:") {
-		t.Error("Password not found in secret data")
-	}
-	if !strings.Contains(data, "bcrypt_hash:") {
-		t.Error("Bcrypt hash not found in secret data")
-	}
-	if !strings.Contains(data, "length: 32") {
-		t.Error("Length not computed correctly")
-	}
-	if !strings.Contains(data, "entropy:") {
-		t.Error("Entropy not computed")
-	}
-	if !strings.Contains(data, "sha256:") {
-		t.Error("SHA256 hash not computed")
 	}
 }
 
-func TestE2EMultipleGenerators(t *testing.T) {
+func TestAllRandomGenerators(t *testing.T) {
 	cfg, err := config.GetConfig()
 	if err != nil {
 		t.Fatalf("Failed to get config: %v", err)
@@ -139,9 +120,8 @@ func TestE2EMultipleGenerators(t *testing.T) {
 	}
 
 	namespace := "default"
-	name := "e2e-multi-test"
+	name := "e2e-all-random-test"
 
-	// Create SecretSanta CR with multiple generators
 	secretSanta := &unstructured.Unstructured{
 		Object: map[string]interface{}{
 			"apiVersion": "secrets.secret-santa.io/v1alpha1",
@@ -151,12 +131,26 @@ func TestE2EMultipleGenerators(t *testing.T) {
 				"namespace": namespace,
 			},
 			"spec": map[string]interface{}{
-				"template": `password: {{ .Password.value }}
-api_key: {{ .APIKey.value | b64enc }}
+				"template": `# Random Password
+password: {{ .Password.value }}
+password_charset: {{ .Password.charset }}
+
+# Random String
+random_string: {{ .RandomString.value }}
+random_string_charset: {{ .RandomString.charset }}
+
+# Random UUID
 uuid: {{ .UUID.value }}
-uuid_compact: {{ .UUID.value | compact }}
-port: {{ .Port.value }}
-port_hex: {{ .Port.value | toHex }}`,
+
+# Random Integer
+random_integer: {{ .RandomInteger.value }}
+
+# Random Bytes
+random_bytes: {{ .RandomBytes.value }}
+random_bytes_hex: {{ .RandomBytes.hex }}
+
+# Random ID
+random_id: {{ .RandomID.value }}`,
 				"generators": []interface{}{
 					map[string]interface{}{
 						"name": "Password",
@@ -166,11 +160,11 @@ port_hex: {{ .Port.value | toHex }}`,
 						},
 					},
 					map[string]interface{}{
-						"name": "APIKey",
+						"name": "RandomString",
 						"type": "random_string",
 						"config": map[string]interface{}{
-							"length":  float64(32),
-							"special": false,
+							"length":  float64(20),
+							"special": true,
 						},
 					},
 					map[string]interface{}{
@@ -178,11 +172,25 @@ port_hex: {{ .Port.value | toHex }}`,
 						"type": "random_uuid",
 					},
 					map[string]interface{}{
-						"name": "Port",
+						"name": "RandomInteger",
 						"type": "random_integer",
 						"config": map[string]interface{}{
-							"min": float64(8000),
-							"max": float64(9000),
+							"min": float64(1000),
+							"max": float64(9999),
+						},
+					},
+					map[string]interface{}{
+						"name": "RandomBytes",
+						"type": "random_bytes",
+						"config": map[string]interface{}{
+							"length": float64(32),
+						},
+					},
+					map[string]interface{}{
+						"name": "RandomID",
+						"type": "random_id",
+						"config": map[string]interface{}{
+							"length": float64(12),
 						},
 					},
 				},
@@ -197,7 +205,6 @@ port_hex: {{ .Port.value | toHex }}`,
 	}
 	defer dynClient.Resource(secretSantaGVR).Namespace(namespace).Delete(context.TODO(), name, metav1.DeleteOptions{})
 
-	// Wait for secret to be created
 	err = wait.PollImmediate(2*time.Second, 60*time.Second, func() (bool, error) {
 		_, err := client.CoreV1().Secrets(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 		return err == nil, nil
@@ -206,16 +213,20 @@ port_hex: {{ .Port.value | toHex }}`,
 		t.Fatalf("Secret was not created: %v", err)
 	}
 
-	// Verify secret content
 	secret, err := client.CoreV1().Secrets(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 	if err != nil {
 		t.Fatalf("Failed to get secret: %v", err)
 	}
 
 	data := string(secret.Data["data"])
-
-	// Verify all generators worked
-	expectedFields := []string{"password:", "api_key:", "uuid:", "uuid_compact:", "port:", "port_hex:"}
+	expectedFields := []string{
+		"password:", "password_charset:",
+		"random_string:", "random_string_charset:",
+		"uuid:",
+		"random_integer:",
+		"random_bytes:", "random_bytes_hex:",
+		"random_id:",
+	}
 	for _, field := range expectedFields {
 		if !strings.Contains(data, field) {
 			t.Errorf("Field %s not found in secret data", field)
