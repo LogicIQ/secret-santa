@@ -4,6 +4,34 @@ Kubernetes operator for sensitive data generation with Go template support
 > **⚠️ Development Version Warning**  
 > This is a development version and should **NOT** be used in production environments. The API and functionality may change without notice.
 
+## Why Secret Santa?
+
+Generating sensitive data in Kubernetes clusters presents unique security challenges:
+
+### The Terraform State Problem
+Many teams use Terraform to generate secrets (passwords, keys, certificates) for their Kubernetes applications. However, this approach has a critical flaw: **all generated secrets are stored in plaintext in the Terraform state file**. This means:
+
+- Sensitive data is exposed in state files (local or remote)
+- State files must be secured with the same rigor as the secrets themselves
+- Rotating secrets requires Terraform runs and state management
+- Secrets leak into version control if state files aren't properly excluded
+
+### The Kubernetes-Native Solution
+Secret Santa solves this by generating secrets directly inside your Kubernetes cluster:
+
+- **No State Files**: Secrets are generated in-cluster and never leave Kubernetes
+- **Create-Once**: Secrets are generated once and never modified, ensuring stability
+- **GitOps Friendly**: Define secret templates in Git without exposing actual values
+- **Independent Lifecycle**: Secrets persist independently of their definitions
+- **Declarative**: Use Kubernetes CRDs to declare what secrets you need, not how to create them
+
+### Use Cases
+- Generate database passwords without storing them in Terraform state
+- Create TLS certificates directly in the cluster
+- Generate API keys and tokens for applications
+- Produce cryptographic keys for encryption at rest
+- Create random identifiers and secrets for microservices
+
 ## Features
 
 ### Core Functionality
@@ -54,6 +82,43 @@ Kubernetes operator for sensitive data generation with Go template support
 
 ### Time-based
 - `time_static` - Static timestamps
+
+## Installation
+
+### Using kubectl
+
+```bash
+# Install CRD
+kubectl apply -f config/crd/secretsanta.yaml
+
+# Install RBAC
+kubectl apply -f config/rbac/rbac.yaml
+
+# Install operator
+kubectl apply -f config/manager/deployment.yaml
+```
+
+### Using Helm
+
+```bash
+# Install from local chart
+helm install secret-santa ./helm-chart
+
+# Install with custom values
+helm install secret-santa ./helm-chart \
+  --set replicaCount=2 \
+  --set operator.leaderElect=true \
+  --set operator.maxConcurrentReconciles=5
+
+# Install in specific namespace
+helm install secret-santa ./helm-chart --namespace secret-santa-system --create-namespace
+
+# Upgrade
+helm upgrade secret-santa ./helm-chart
+
+# Uninstall
+helm uninstall secret-santa
+```
 
 ## Configuration
 
