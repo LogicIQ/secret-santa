@@ -69,14 +69,14 @@ func (m *GCPSecretManagerMedia) Store(ctx context.Context, secretSanta *secretsa
 		createReq.Secret.Labels = labels
 	}
 
-	secret, err := client.CreateSecret(ctx, createReq)
+	_, err = client.CreateSecret(ctx, createReq)
 	if err != nil {
 		return fmt.Errorf("failed to create secret: %w", err)
 	}
 
 	// Add secret version with the data
 	addVersionReq := &secretmanagerpb.AddSecretVersionRequest{
-		Parent: secret.Name,
+		Parent: secretPath,
 		Payload: &secretmanagerpb.SecretPayload{
 			Data: []byte(data),
 		},

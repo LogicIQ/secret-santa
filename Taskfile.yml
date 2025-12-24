@@ -9,7 +9,7 @@ tasks:
   go:test:
     desc: Run unit tests with coverage
     cmds:
-      - go test -v -coverprofile=coverage.out ./pkg/generators/...
+      - go test -v -coverprofile=coverage.out ./pkg/generators/... ./pkg/media/...
       - go tool cover -func=coverage.out
 
   go:test:controller:
