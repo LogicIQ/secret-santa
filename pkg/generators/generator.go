@@ -14,6 +14,11 @@ func getStringConfig(config map[string]interface{}, key, defaultValue string) st
 	return defaultValue
 }
 
+// GetStringConfig exports the helper function for use in media packages
+func GetStringConfig(config map[string]interface{}, key, defaultValue string) string {
+	return getStringConfig(config, key, defaultValue)
+}
+
 // getNormalizedStringConfig gets a string config value and normalizes it to lowercase
 func getNormalizedStringConfig(config map[string]interface{}, key, defaultValue string) string {
 	if val, ok := config[key].(string); ok {
@@ -27,6 +32,11 @@ func getIntConfig(config map[string]interface{}, key string, defaultValue int) i
 		return int(val)
 	}
 	return defaultValue
+}
+
+// GetIntConfig exports the helper function for use in media packages
+func GetIntConfig(config map[string]interface{}, key string, defaultValue int) int {
+	return getIntConfig(config, key, defaultValue)
 }
 
 func getBoolConfig(config map[string]interface{}, key string, defaultValue bool) bool {

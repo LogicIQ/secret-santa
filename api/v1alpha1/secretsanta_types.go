@@ -7,6 +7,14 @@ import (
 
 //+kubebuilder:object:generate=true
 
+// MediaConfig defines configuration for secret storage destinations
+type MediaConfig struct {
+	Type   string                `json:"type"`
+	Config *runtime.RawExtension `json:"config,omitempty"`
+}
+
+//+kubebuilder:object:generate=true
+
 // GeneratorConfig defines configuration for secret generators
 type GeneratorConfig struct {
 	Name   string                `json:"name"`
@@ -20,6 +28,7 @@ type GeneratorConfig struct {
 type SecretSantaSpec struct {
 	Template    string            `json:"template"`
 	Generators  []GeneratorConfig `json:"generators"`
+	Media       *MediaConfig      `json:"media,omitempty"`
 	SecretName  string            `json:"secretName,omitempty"`
 	SecretType  string            `json:"secretType,omitempty"`
 	Labels      map[string]string `json:"labels,omitempty"`

@@ -1,0 +1,123 @@
+apiVersion: secrets.secret-santa.io/v1alpha1
+kind: SecretSanta
+metadata:
+  name: aws-secrets-manager-example
+  namespace: default
+spec:
+  template: |
+    {
+      "database_password": "{{ .dbpass.password }}",
+      "api_key": "{{ .apikey.password }}",
+      "encryption_key": "{{ .enckey.hex }}"
+    }
+  generators:
+    - name: dbpass
+      type: random_password
+      config:
+        length: 32
+        includeSymbols: true
+    - name: apikey
+      type: random_password
+      config:
+        length: 64
+        includeSymbols: false
+    - name: enckey
+      type: random_bytes
+      config:
+        length: 32
+  media:
+    type: aws-secrets-manager
+    config:
+      region: us-west-2
+      secret_name: my-custom-secret-name
+      kms_key_id: arn:aws:kms:us-west-2:123456789012:key/12345678-1234-1234-1234-123456789012
+  secretName: my-app-secrets  # fallback if secret_name not specified in media config
+  labels:
+    app: my-application
+    environment: production
+  annotations:
+    description: "Application secrets stored in AWS Secrets Manager"
+---
+apiVersion: secrets.secret-santa.io/v1alpha1
+kind: SecretSanta
+metadata:
+  name: aws-parameter-store-example
+  namespace: default
+spec:
+  template: |
+    {{ .dburl.password }}
+  generators:
+    - name: dburl
+      type: random_string
+      config:
+        length: 128
+        charset: "alphanumeric"
+  media:
+    type: aws-parameter-store
+    config:
+      region: us-east-1
+      parameter_name: custom-db-connection-string
+      kms_key_id: alias/parameter-store-key
+  secretName: database-connection-string  # fallback if parameter_name not specified
+  labels:
+    component: database
+    tier: backend
+---
+apiVersion: secrets.secret-santa.io/v1alpha1
+kind: SecretSanta
+metadata:
+  name: k8s-secret-example
+  namespace: default
+spec:
+  template: |
+    username: admin
+    password: {{ .adminpass.password }}
+  generators:
+    - name: adminpass
+      type: random_password
+      config:
+        length: 24
+        includeSymbols: true
+  media:
+    type: k8s  # Default - can be omitted
+    config:
+      secret_name: custom-admin-credentials
+  secretName: admin-credentials  # Fallback if secret_name not specified
+  secretType: Opaque
+---
+apiVersion: secrets.secret-santa.io/v1alpha1
+kind: SecretSanta
+metadata:
+  name: gcp-secret-manager-example
+  namespace: default
+spec:
+  template: |
+    {
+      "database_password": "{{ .dbpass.password }}",
+      "api_key": "{{ .apikey.password }}",
+      "service_token": "{{ .token.uuid }}"
+    }
+  generators:
+    - name: dbpass
+      type: random_password
+      config:
+        length: 32
+        includeSymbols: true
+    - name: apikey
+      type: random_password
+      config:
+        length: 64
+        includeSymbols: false
+    - name: token
+      type: random_uuid
+  media:
+    type: gcp-secret-manager
+    config:
+      project_id: my-gcp-project
+      secret_name: app-secrets
+  secretName: my-app-secrets  # fallback if secret_name not specified in media config
+  labels:
+    app: my-application
+    environment: production
+  annotations:
+    description: "Application secrets stored in GCP Secret Manager"

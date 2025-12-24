@@ -24,6 +24,10 @@ import (
 	"github.com/logicIQ/secret-santa/pkg/generators/random"
 	timegens "github.com/logicIQ/secret-santa/pkg/generators/time"
 	"github.com/logicIQ/secret-santa/pkg/generators/tls"
+	"github.com/logicIQ/secret-santa/pkg/media"
+	"github.com/logicIQ/secret-santa/pkg/media/aws"
+	"github.com/logicIQ/secret-santa/pkg/media/gcp"
+	"github.com/logicIQ/secret-santa/pkg/media/k8s"
 	tmplpkg "github.com/logicIQ/secret-santa/pkg/template"
 )
 
@@ -158,7 +162,122 @@ func (r *SecretSantaReconciler) reconcileSecret(ctx context.Context, secretSanta
 		return ctrl.Result{}, nil
 	}
 
-	return r.createOrUpdateSecret(ctx, secretSanta, secretData, secretName)
+	return r.storeSecret(ctx, secretSanta, secretData)
+}
+
+func (r *SecretSantaReconciler) storeSecret(ctx context.Context, secretSanta *secretsantav1alpha1.SecretSanta, data string) (ctrl.Result, error) {
+	log := log.FromContext(ctx)
+
+	// Create media instance based on configuration
+	mediaInstance, err := r.createMedia(secretSanta)
+	if err != nil {
+		log.Error(err, "Failed to create media instance")
+		return ctrl.Result{}, err
+	}
+
+	// Store the secret using the media
+	if err := mediaInstance.Store(ctx, secretSanta, data); err != nil {
+		log.Error(err, "Failed to store secret", "mediaType", mediaInstance.GetType())
+		if updateErr := r.updateStatus(ctx, secretSanta, "SecretStorageFailed", "False", err.Error()); updateErr != nil {
+			log.Error(updateErr, "Failed to update status")
+		}
+		return ctrl.Result{}, err
+	}
+
+	RecordSecretGenerated(secretSanta.Name, secretSanta.Namespace, mediaInstance.GetType())
+	UpdateSecretInstances(secretSanta.Name, secretSanta.Namespace, 1)
+	if updateErr := r.updateStatus(ctx, secretSanta, "Ready", "True", "Secret stored successfully"); updateErr != nil {
+		log.Error(updateErr, "Failed to update status")
+	}
+
+	log.Info("Secret stored successfully", "mediaType", mediaInstance.GetType())
+	return ctrl.Result{}, nil
+}
+
+func (r *SecretSantaReconciler) createMedia(secretSanta *secretsantav1alpha1.SecretSanta) (media.Media, error) {
+	// Default to K8s secrets if no media is specified
+	if secretSanta.Spec.Media == nil {
+		return &media.K8sSecretsMedia{Client: r.Client}, nil
+	}
+
+	// Parse media config
+	var config map[string]interface{}
+	if secretSanta.Spec.Media.Config != nil && len(secretSanta.Spec.Media.Config.Raw) > 0 {
+		if err := json.Unmarshal(secretSanta.Spec.Media.Config.Raw, &config); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal media config: %w", err)
+		}
+	}
+	if config == nil {
+		config = make(map[string]interface{})
+	}
+
+	switch secretSanta.Spec.Media.Type {
+	case "k8s", "":
+		secretName := ""
+		if s, ok := config["secret_name"].(string); ok {
+			secretName = s
+		}
+		return &k8s.K8sSecretsMedia{
+			Client:     r.Client,
+			SecretName: secretName,
+		}, nil
+	case "aws-secrets-manager":
+		region := ""
+		if r, ok := config["region"].(string); ok {
+			region = r
+		}
+		secretName := ""
+		if s, ok := config["secret_name"].(string); ok {
+			secretName = s
+		}
+		kmsKeyId := ""
+		if k, ok := config["kms_key_id"].(string); ok {
+			kmsKeyId = k
+		}
+		return &aws.AWSSecretsManagerMedia{
+			Region:     region,
+			SecretName: secretName,
+			KMSKeyId:   kmsKeyId,
+		}, nil
+	case "aws-parameter-store":
+		region := ""
+		if r, ok := config["region"].(string); ok {
+			region = r
+		}
+		parameterName := ""
+		if p, ok := config["parameter_name"].(string); ok {
+			parameterName = p
+		}
+		kmsKeyId := ""
+		if k, ok := config["kms_key_id"].(string); ok {
+			kmsKeyId = k
+		}
+		return &aws.AWSParameterStoreMedia{
+			Region:        region,
+			ParameterName: parameterName,
+			KMSKeyId:      kmsKeyId,
+		}, nil
+	case "gcp-secret-manager":
+		projectID := ""
+		if p, ok := config["project_id"].(string); ok {
+			projectID = p
+		}
+		secretName := ""
+		if s, ok := config["secret_name"].(string); ok {
+			secretName = s
+		}
+		credentialsFile := ""
+		if c, ok := config["credentials_file"].(string); ok {
+			credentialsFile = c
+		}
+		return &gcp.GCPSecretManagerMedia{
+			ProjectID:       projectID,
+			SecretName:      secretName,
+			CredentialsFile: credentialsFile,
+		}, nil
+	default:
+		return nil, fmt.Errorf("unsupported media type: %s", secretSanta.Spec.Media.Type)
+	}
 }
 
 func (r *SecretSantaReconciler) executeTemplate(tmplStr string, data map[string]interface{}) (string, error) {
@@ -173,57 +292,6 @@ func (r *SecretSantaReconciler) executeTemplate(tmplStr string, data map[string]
 	}
 
 	return buf.String(), nil
-}
-
-func (r *SecretSantaReconciler) createOrUpdateSecret(ctx context.Context, secretSanta *secretsantav1alpha1.SecretSanta, data string, secretName string) (ctrl.Result, error) {
-	log := log.FromContext(ctx)
-
-	// Handle TLS secrets specially
-	stringData := map[string]string{}
-	if secretSanta.Spec.SecretType == "kubernetes.io/tls" {
-		// For TLS secrets, parse the template output to extract tls.crt and tls.key
-		lines := strings.Split(data, "\n")
-		for _, line := range lines {
-			if strings.HasPrefix(line, "tls.crt:") {
-				stringData["tls.crt"] = strings.TrimSpace(strings.TrimPrefix(line, "tls.crt:"))
-			} else if strings.HasPrefix(line, "tls.key:") {
-				stringData["tls.key"] = strings.TrimSpace(strings.TrimPrefix(line, "tls.key:"))
-			}
-		}
-		// If we don't have the required fields, fall back to data field
-		if stringData["tls.crt"] == "" || stringData["tls.key"] == "" {
-			stringData = map[string]string{"data": data}
-		}
-	} else {
-		stringData["data"] = data
-	}
-
-	secret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:        secretName,
-			Namespace:   secretSanta.Namespace,
-			Labels:      secretSanta.Spec.Labels,
-			Annotations: secretSanta.Spec.Annotations,
-		},
-		Type:       corev1.SecretType(secretSanta.Spec.SecretType),
-		StringData: stringData,
-	}
-
-	if err := r.Client.Create(ctx, secret); err != nil {
-		if updateErr := r.updateStatus(ctx, secretSanta, "SecretCreationFailed", "False", err.Error()); updateErr != nil {
-			log.Error(updateErr, "Failed to update status")
-		}
-		return ctrl.Result{}, err
-	}
-
-	RecordSecretGenerated(secretSanta.Name, secretSanta.Namespace, string(secret.Type))
-	UpdateSecretInstances(secretSanta.Name, secretSanta.Namespace, 1)
-	if updateErr := r.updateStatus(ctx, secretSanta, "Ready", "True", "Secret generated successfully"); updateErr != nil {
-		log.Error(updateErr, "Failed to update status")
-	}
-
-	log.Info("Secret created successfully", "secretName", secret.Name)
-	return ctrl.Result{}, nil
 }
 
 func (r *SecretSantaReconciler) generateTemplateData(generatorConfigs []secretsantav1alpha1.GeneratorConfig) (map[string]interface{}, error) {
