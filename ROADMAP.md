@@ -15,9 +15,18 @@
 - Multi-destination storage
 - Cloud authentication (IAM roles, workload identity)
 
-## Phase 1: Core Cloud Completion
+## Features to Implement
 
-**Priority: High**
+### Core Features
+
+- **Dry Run Support** - Per-CR dry run capabilities
+  - Template validation without secret creation
+  - Preview generated values (with masking options)
+  - Multiple output formats (YAML, JSON, text)
+  - CI/CD pipeline integration
+  - Validate-only mode for configuration testing
+
+### Media Storage Providers
 
 - **Azure Key Vault** - Complete big 3 cloud providers
   - Managed identity authentication
@@ -25,52 +34,85 @@
   - Custom vault URL configuration
   - Secret versioning support
 
-## Phase 2: Enterprise & Regional Expansion
-
-**Priority: Medium-High**
-
 - **Oracle Cloud Infrastructure (OCI) Vault**
   - Instance principal authentication
   - User principal support
   - Compartment-based access
+
 - **Alibaba Cloud KMS**
   - RAM role authentication
   - Resource access management
   - Multi-region support
 
-## Phase 3: Specialized Providers
-
-**Priority: Medium**
-
 - **IBM Cloud Secrets Manager**
   - IAM authentication
   - Secret groups support
   - Hybrid cloud integration
+
 - **HashiCorp Vault** (Static secrets only)
   - Token authentication
   - AppRole authentication
   - KV v1/v2 support
   - Note: Dynamic secrets remain out of scope
 
-## Phase 4: Developer & Edge Platforms
-
-**Priority: Low-Medium**
-
 - **DigitalOcean Spaces** (Object storage for secrets)
 - **Vultr Object Storage**
 - **Linode Object Storage**
 
-## Phase 5: Advanced Features
+### High-Value Features
 
-**Priority: Based on User Feedback**
+- **Secret Dependencies & Ordering**
+  - Reference secrets from other SecretSanta CRs
+  - Dependency resolution and creation ordering
+  - Cross-namespace secret references
+
+- **Backup & Recovery**
+  - Cross-cluster migration support
+
+- **Compliance & Auditing**
+  - Detailed audit logs for secret operations
+  - Compliance reporting (SOC2, PCI-DSS)
+  - Secret lifecycle tracking
+
+- **Multi-Destination Storage**
+  - Store same secret in multiple backends simultaneously
+
+### Operational Features
+
+- **Monitoring & Alerting**
+  - Prometheus metrics expansion
+  - Alerting integration
+
+- **Batch Operations**
+  - Template libraries and reusable components
+  - Namespace-wide operations
+
+- **Security Enhancements**
+  - Access control policies per CR
+  - Integration with admission controllers
 
 - **Secret Rotation Integration**
   - Webhook-based rotation triggers
   - External rotation orchestration
+
 - **Multi-Region Replication**
   - Cross-region secret synchronization
   - Disaster recovery patterns
-- **Advanced Templating**
+
+### Developer Experience
+
+- **CLI Tool**
+  - Local secret generation and testing
+  - Template validation offline
+  - Migration utilities
+
+- **GitOps Integration**
+  - ArgoCD/Flux integration patterns
+  - Git-based secret management workflows
+
+- **Enhanced Templating**
+  - Include/import other templates
+  - Conditional generation based on environment
   - Conditional logic
   - External data sources
   - Custom functions
