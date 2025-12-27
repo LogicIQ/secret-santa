@@ -2,7 +2,10 @@ package gcp
 
 import (
 	"context"
+	"crypto/sha256"
 	"fmt"
+	"strings"
+	"time"
 
 	secretmanager "cloud.google.com/go/secretmanager/apiv1"
 	"cloud.google.com/go/secretmanager/apiv1/secretmanagerpb"
@@ -18,7 +21,7 @@ type GCPSecretManagerMedia struct {
 	CredentialsFile string
 }
 
-func (m *GCPSecretManagerMedia) Store(ctx context.Context, secretSanta *secretsantav1alpha1.SecretSanta, data string) error {
+func (m *GCPSecretManagerMedia) Store(ctx context.Context, secretSanta *secretsantav1alpha1.SecretSanta, data string, enableMetadata bool) error {
 	var opts []option.ClientOption
 	
 	// Use credentials file if provided, otherwise rely on workload identity/default credentials
@@ -57,7 +60,7 @@ func (m *GCPSecretManagerMedia) Store(ctx context.Context, secretSanta *secretsa
 		},
 	}
 
-	// Add labels from SecretSanta labels and annotations
+	// Add labels from SecretSanta labels, annotations, and metadata
 	labels := make(map[string]string)
 	for k, v := range secretSanta.Spec.Labels {
 		labels[k] = v
@@ -65,6 +68,15 @@ func (m *GCPSecretManagerMedia) Store(ctx context.Context, secretSanta *secretsa
 	for k, v := range secretSanta.Spec.Annotations {
 		labels[k] = v
 	}
+	
+	// Add metadata labels only if enabled
+	if enableMetadata {
+		labels["secrets_secret-santa_io_created-at"] = time.Now().UTC().Format(time.RFC3339)
+		labels["secrets_secret-santa_io_generator-types"] = m.getGeneratorTypes(secretSanta.Spec.Generators)
+		labels["secrets_secret-santa_io_template-checksum"] = m.calculateTemplateChecksum(secretSanta.Spec.Template)
+		labels["secrets_secret-santa_io_source-cr"] = fmt.Sprintf("%s_%s", secretSanta.Namespace, secretSanta.Name)
+	}
+	
 	if len(labels) > 0 {
 		createReq.Secret.Labels = labels
 	}
@@ -92,4 +104,19 @@ func (m *GCPSecretManagerMedia) Store(ctx context.Context, secretSanta *secretsa
 
 func (m *GCPSecretManagerMedia) GetType() string {
 	return "gcp-secret-manager"
+}
+
+// getGeneratorTypes extracts generator types from the configuration
+func (m *GCPSecretManagerMedia) getGeneratorTypes(generators []secretsantav1alpha1.GeneratorConfig) string {
+	types := make([]string, len(generators))
+	for i, gen := range generators {
+		types[i] = gen.Type
+	}
+	return strings.Join(types, ",")
+}
+
+// calculateTemplateChecksum creates a SHA256 checksum of the template
+func (m *GCPSecretManagerMedia) calculateTemplateChecksum(template string) string {
+	hash := sha256.Sum256([]byte(template))
+	return fmt.Sprintf("%x", hash)[:16] // Use first 16 chars for brevity
 }

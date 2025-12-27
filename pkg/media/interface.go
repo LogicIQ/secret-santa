@@ -7,7 +7,7 @@ import (
 
 // Media interface for different secret storage destinations
 type Media interface {
-	Store(ctx context.Context, secretSanta *secretsantav1alpha1.SecretSanta, data string) error
+	Store(ctx context.Context, secretSanta *secretsantav1alpha1.SecretSanta, data string, enableMetadata bool) error
 	GetType() string
 }
 

@@ -1,0 +1,31 @@
+apiVersion: secrets.secret-santa.io/v1alpha1
+kind: SecretSanta
+metadata:
+  name: metadata-test
+  namespace: default
+  labels:
+    app: test-app
+    version: v1.0.0
+  annotations:
+    description: "Test secret for metadata enhancement"
+spec:
+  template: |
+    username: admin
+    password: {{ .pass.password }}
+    api_key: {{ .api.value }}
+  generators:
+    - name: pass
+      type: random_password
+      config:
+        length: 32
+        special: true
+    - name: api
+      type: random_string
+      config:
+        length: 64
+        special: false
+  secretType: "Opaque"
+  labels:
+    environment: test
+  annotations:
+    owner: secret-santa-team

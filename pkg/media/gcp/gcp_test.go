@@ -87,3 +87,22 @@ func TestGCPSecretManagerMedia_ConfigFields(t *testing.T) {
 	assert.Equal(t, "my-secret", media.SecretName)
 	assert.Equal(t, "/path/to/key.json", media.CredentialsFile)
 }
+
+func TestGCPSecretManagerMedia_getGeneratorTypes(t *testing.T) {
+	media := &GCPSecretManagerMedia{}
+	generators := []secretsantav1alpha1.GeneratorConfig{
+		{Type: "random_password"},
+		{Type: "tls_self_signed_cert"},
+		{Type: "crypto_ed25519_key"},
+	}
+	result := media.getGeneratorTypes(generators)
+	assert.Equal(t, "random_password,tls_self_signed_cert,crypto_ed25519_key", result)
+}
+
+func TestGCPSecretManagerMedia_calculateTemplateChecksum(t *testing.T) {
+	media := &GCPSecretManagerMedia{}
+	template := "cert: {{ .cert.certificate }}"
+	checksum := media.calculateTemplateChecksum(template)
+	assert.Len(t, checksum, 16)
+	assert.Equal(t, checksum, media.calculateTemplateChecksum(template))
+}

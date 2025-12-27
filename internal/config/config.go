@@ -17,6 +17,7 @@ type Config struct {
 	IncludeLabels           []string
 	ExcludeLabels           []string
 	DryRun                  bool
+	EnableMetadata          bool
 	LogFormat               string
 	LogLevel                string
 }
@@ -32,6 +33,7 @@ func Load() (*Config, error) {
 	viper.SetDefault("include-labels", []string{})
 	viper.SetDefault("exclude-labels", []string{})
 	viper.SetDefault("dry-run", false)
+	viper.SetDefault("enable-metadata", true)
 	viper.SetDefault("log-format", "json")
 	viper.SetDefault("log-level", "info")
 
@@ -50,6 +52,7 @@ func Load() (*Config, error) {
 		IncludeLabels:           getStringSlice("include-labels"),
 		ExcludeLabels:           getStringSlice("exclude-labels"),
 		DryRun:                  viper.GetBool("dry-run"),
+		EnableMetadata:          viper.GetBool("enable-metadata"),
 		LogFormat:               viper.GetString("log-format"),
 		LogLevel:                viper.GetString("log-level"),
 	}, nil

@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"strings"
 	"text/template"
 	"time"
 
@@ -43,6 +42,7 @@ type SecretSantaReconciler struct {
 	IncludeLabels      []string
 	ExcludeLabels      []string
 	DryRun             bool
+	EnableMetadata     bool
 }
 
 func (r *SecretSantaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
@@ -176,7 +176,7 @@ func (r *SecretSantaReconciler) storeSecret(ctx context.Context, secretSanta *se
 	}
 
 	// Store the secret using the media
-	if err := mediaInstance.Store(ctx, secretSanta, data); err != nil {
+	if err := mediaInstance.Store(ctx, secretSanta, data, r.EnableMetadata); err != nil {
 		log.Error(err, "Failed to store secret", "mediaType", mediaInstance.GetType())
 		if updateErr := r.updateStatus(ctx, secretSanta, "SecretStorageFailed", "False", err.Error()); updateErr != nil {
 			log.Error(updateErr, "Failed to update status")
@@ -197,7 +197,7 @@ func (r *SecretSantaReconciler) storeSecret(ctx context.Context, secretSanta *se
 func (r *SecretSantaReconciler) createMedia(secretSanta *secretsantav1alpha1.SecretSanta) (media.Media, error) {
 	// Default to K8s secrets if no media is specified
 	if secretSanta.Spec.Media == nil {
-		return &media.K8sSecretsMedia{Client: r.Client}, nil
+		return &k8s.K8sSecretsMedia{Client: r.Client}, nil
 	}
 
 	// Parse media config

@@ -2,7 +2,10 @@ package k8s
 
 import (
 	"context"
+	"crypto/sha256"
+	"fmt"
 	"strings"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -17,7 +20,7 @@ type K8sSecretsMedia struct {
 	SecretName string
 }
 
-func (m *K8sSecretsMedia) Store(ctx context.Context, secretSanta *secretsantav1alpha1.SecretSanta, data string) error {
+func (m *K8sSecretsMedia) Store(ctx context.Context, secretSanta *secretsantav1alpha1.SecretSanta, data string, enableMetadata bool) error {
 	secretName := m.SecretName
 	if secretName == "" {
 		secretName = secretSanta.Spec.SecretName
@@ -46,12 +49,26 @@ func (m *K8sSecretsMedia) Store(ctx context.Context, secretSanta *secretsantav1a
 		stringData["data"] = data
 	}
 
+	// Merge user annotations with metadata annotations
+	annotations := make(map[string]string)
+	for k, v := range secretSanta.Spec.Annotations {
+		annotations[k] = v
+	}
+	
+	// Add metadata annotations only if enabled
+	if enableMetadata {
+		annotations["secrets.secret-santa.io/created-at"] = time.Now().UTC().Format(time.RFC3339)
+		annotations["secrets.secret-santa.io/generator-types"] = m.getGeneratorTypes(secretSanta.Spec.Generators)
+		annotations["secrets.secret-santa.io/template-checksum"] = m.calculateTemplateChecksum(secretSanta.Spec.Template)
+		annotations["secrets.secret-santa.io/source-cr"] = fmt.Sprintf("%s/%s", secretSanta.Namespace, secretSanta.Name)
+	}
+
 	secret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        secretName,
 			Namespace:   secretSanta.Namespace,
 			Labels:      secretSanta.Spec.Labels,
-			Annotations: secretSanta.Spec.Annotations,
+			Annotations: annotations,
 		},
 		Type:       corev1.SecretType(secretSanta.Spec.SecretType),
 		StringData: stringData,
@@ -62,4 +79,19 @@ func (m *K8sSecretsMedia) Store(ctx context.Context, secretSanta *secretsantav1a
 
 func (m *K8sSecretsMedia) GetType() string {
 	return "k8s"
+}
+
+// getGeneratorTypes extracts generator types from the configuration
+func (m *K8sSecretsMedia) getGeneratorTypes(generators []secretsantav1alpha1.GeneratorConfig) string {
+	types := make([]string, len(generators))
+	for i, gen := range generators {
+		types[i] = gen.Type
+	}
+	return strings.Join(types, ",")
+}
+
+// calculateTemplateChecksum creates a SHA256 checksum of the template
+func (m *K8sSecretsMedia) calculateTemplateChecksum(template string) string {
+	hash := sha256.Sum256([]byte(template))
+	return fmt.Sprintf("%x", hash)[:16] // Use first 16 chars for brevity
 }

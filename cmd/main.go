@@ -50,6 +50,7 @@ func main() {
 	rootCmd.Flags().StringSlice("include-labels", []string{}, "Comma-separated list of labels to include.")
 	rootCmd.Flags().StringSlice("exclude-labels", []string{}, "Comma-separated list of labels to exclude.")
 	rootCmd.Flags().Bool("dry-run", false, "Enable dry-run mode (validate templates without creating secrets).")
+	rootCmd.Flags().Bool("enable-metadata", true, "Enable metadata annotations/tags on generated secrets.")
 	rootCmd.Flags().String("log-format", "json", "Log format: json or console")
 	rootCmd.Flags().String("log-level", "info", "Log level: debug, info, warn, error")
 
@@ -124,6 +125,7 @@ func run(cmd *cobra.Command, args []string) {
 		IncludeLabels:      cfg.IncludeLabels,
 		ExcludeLabels:      cfg.ExcludeLabels,
 		DryRun:             cfg.DryRun,
+		EnableMetadata:     cfg.EnableMetadata,
 	}).SetupWithManager(mgr, cfg.MaxConcurrentReconciles); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "SecretSanta")
 		os.Exit(1)
