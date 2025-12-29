@@ -1,0 +1,95 @@
+apiVersion: secrets.secret-santa.io/v1alpha1
+kind: SecretSanta
+metadata:
+  name: dry-run-json-example
+  namespace: default
+spec:
+  dryRun: true
+  template: |
+    {
+      "database": {
+        "username": "admin",
+        "password": "{{ .dbpass.value }}",
+        "host": "{{ .dbpass.host | default "localhost" }}"
+      },
+      "api": {
+        "key": "{{ .apikey.value }}",
+        "secret": "{{ .apisecret.value }}"
+      }
+    }
+  generators:
+    - name: dbpass
+      type: random_password
+      config:
+        length: 32
+        include_symbols: true
+    - name: apikey
+      type: random_string
+      config:
+        length: 64
+        charset: "alphanumeric"
+    - name: apisecret
+      type: random_bytes
+      config:
+        length: 32
+        encoding: "base64"
+
+---
+apiVersion: secrets.secret-santa.io/v1alpha1
+kind: SecretSanta
+metadata:
+  name: dry-run-yaml-example
+  namespace: default
+spec:
+  dryRun: true
+  template: |
+    database_url: "postgresql://{{ .dbcreds.username }}:{{ .dbcreds.password }}@localhost:5432/myapp"
+    jwt_secret: "{{ .jwt.value }}"
+    encryption_key: "{{ .encryption.private_key }}"
+    tls_cert: |
+{{ .tls.certificate | indent 6 }}
+    tls_key: |
+{{ .tls.private_key | indent 6 }}
+  generators:
+    - name: dbcreds
+      type: random_password
+      config:
+        length: 24
+        include_symbols: false
+    - name: jwt
+      type: random_string
+      config:
+        length: 64
+        charset: "alphanumeric"
+    - name: encryption
+      type: crypto_rsa_key
+      config:
+        key_size: 2048
+    - name: tls
+      type: tls_private_key
+      config:
+        algorithm: "RSA"
+        rsa_bits: 2048
+
+---
+apiVersion: secrets.secret-santa.io/v1alpha1
+kind: SecretSanta
+metadata:
+  name: dry-run-validation-error
+  namespace: default
+spec:
+  dryRun: true
+  template: |
+    {
+      "password": "{{ .invalid_generator.value }}",
+      "malformed": "{{ .missing_closing_brace"
+    }
+  generators:
+    - name: valid_gen
+      type: random_password
+      config:
+        length: 16
+    - name: invalid_gen
+      type: unsupported_type
+      config:
+        some_param: "value"

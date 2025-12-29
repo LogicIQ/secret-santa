@@ -1,6 +1,6 @@
 //go:build e2e
 
-package time
+package integration
 
 import (
 	"context"
@@ -8,25 +8,18 @@ import (
 	"testing"
 	"time"
 
-	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime/schema"
+
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
 )
 
-var (
-	secretSantaGVR = schema.GroupVersionResource{
-		Group:    "secrets.secret-santa.io",
-		Version:  "v1alpha1",
-		Resource: "secretsanta",
-	}
-)
 
-func TestTimeStaticGenerator(t *testing.T) {
+
+func TestMultipleGenerators(t *testing.T) {
 	cfg, err := config.GetConfig()
 	if err != nil {
 		t.Fatalf("Failed to get config: %v", err)
@@ -43,7 +36,7 @@ func TestTimeStaticGenerator(t *testing.T) {
 	}
 
 	namespace := "default"
-	name := "e2e-time-static-test"
+	name := "multiple-generators-test"
 
 	secretSanta := &unstructured.Unstructured{
 		Object: map[string]interface{}{
@@ -54,19 +47,38 @@ func TestTimeStaticGenerator(t *testing.T) {
 				"namespace": namespace,
 			},
 			"spec": map[string]interface{}{
-				"template": `timestamp: {{ .Timestamp.value }}
-timezone: {{ .Timestamp.timezone }}
-epoch: {{ .Timestamp.epoch }}
-iso8601: {{ .Timestamp.iso8601 }}
-formatted: {{ .Timestamp.formatted }}
-rfc3339: {{ .Timestamp.rfc3339 }}`,
+				"template": `password: {{ .Password.value }}
+api_key: {{ .APIKey.value | b64enc }}
+uuid: {{ .UUID.value }}
+uuid_compact: {{ .UUID.value | compact }}
+port: {{ .Port.value }}
+port_hex: {{ .Port.value | toHex }}`,
 				"generators": []interface{}{
 					map[string]interface{}{
-						"name": "Timestamp",
-						"type": "time_static",
+						"name": "Password",
+						"type": "random_password",
 						"config": map[string]interface{}{
-							"timezone": "UTC",
-							"format":   "2006-01-02 15:04:05",
+							"length": float64(16),
+						},
+					},
+					map[string]interface{}{
+						"name": "APIKey",
+						"type": "random_string",
+						"config": map[string]interface{}{
+							"length":  float64(32),
+							"special": false,
+						},
+					},
+					map[string]interface{}{
+						"name": "UUID",
+						"type": "random_uuid",
+					},
+					map[string]interface{}{
+						"name": "Port",
+						"type": "random_integer",
+						"config": map[string]interface{}{
+							"min": float64(8000),
+							"max": float64(9000),
 						},
 					},
 				},
@@ -94,12 +106,9 @@ rfc3339: {{ .Timestamp.rfc3339 }}`,
 		t.Fatalf("Failed to get secret: %v", err)
 	}
 
-	if secret.Type != corev1.SecretTypeOpaque {
-		t.Errorf("Expected secret type Opaque, got %s", secret.Type)
-	}
-
 	data := string(secret.Data["data"])
-	expectedFields := []string{"timestamp:", "timezone:", "epoch:", "iso8601:", "formatted:", "rfc3339:"}
+
+	expectedFields := []string{"password:", "api_key:", "uuid:", "uuid_compact:", "port:", "port_hex:"}
 	for _, field := range expectedFields {
 		if !strings.Contains(data, field) {
 			t.Errorf("Field %s not found in secret data", field)

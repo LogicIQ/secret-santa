@@ -1,6 +1,6 @@
 //go:build e2e
 
-package k8s
+package integration
 
 import (
 	"context"
@@ -17,7 +17,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
 )
 
-func TestSimpleRandomPassword(t *testing.T) {
+func TestTemplateFunctions(t *testing.T) {
 	cfg, err := config.GetConfig()
 	if err != nil {
 		t.Fatalf("Failed to get config: %v", err)
@@ -34,7 +34,7 @@ func TestSimpleRandomPassword(t *testing.T) {
 	}
 
 	namespace := "default"
-	name := "simple-password-test"
+	name := "template-functions-test"
 
 	secretSanta := &unstructured.Unstructured{
 		Object: map[string]interface{}{
@@ -45,13 +45,17 @@ func TestSimpleRandomPassword(t *testing.T) {
 				"namespace": namespace,
 			},
 			"spec": map[string]interface{}{
-				"template": `password: {{ .Password.value }}`,
+				"template": `password: {{ .Password.value }}
+bcrypt_hash: {{ .Password.value | bcrypt }}
+length: {{ len .Password.value }}
+entropy: {{ entropy .Password.value .Password.charset | printf "%.2f" }}
+sha256: {{ .Password.value | sha256 }}`,
 				"generators": []interface{}{
 					map[string]interface{}{
 						"name": "Password",
 						"type": "random_password",
 						"config": map[string]interface{}{
-							"length": float64(16),
+							"length": float64(32),
 						},
 					},
 				},
@@ -84,9 +88,23 @@ func TestSimpleRandomPassword(t *testing.T) {
 	}
 
 	data := string(secret.Data["data"])
-	if !strings.Contains(data, "password:") {
-		t.Errorf("Password not found in secret data")
+	if len(data) == 0 {
+		t.Error("Secret data is empty")
 	}
 
-	t.Logf("Test passed! Secret data: %s", data)
+	if !strings.Contains(data, "password:") {
+		t.Error("Password not found in secret data")
+	}
+	if !strings.Contains(data, "bcrypt_hash:") {
+		t.Error("Bcrypt hash not found in secret data")
+	}
+	if !strings.Contains(data, "length: 32") {
+		t.Error("Length not computed correctly")
+	}
+	if !strings.Contains(data, "entropy:") {
+		t.Error("Entropy not computed")
+	}
+	if !strings.Contains(data, "sha256:") {
+		t.Error("SHA256 hash not computed")
+	}
 }

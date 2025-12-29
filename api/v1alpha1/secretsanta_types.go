@@ -7,6 +7,15 @@ import (
 
 //+kubebuilder:object:generate=true
 
+// DryRunResult contains masked template execution results
+type DryRunResult struct {
+	MaskedOutput   string       `json:"maskedOutput,omitempty"`
+	GeneratorsUsed []string     `json:"generatorsUsed,omitempty"`
+	ExecutionTime  *metav1.Time `json:"executionTime,omitempty"`
+}
+
+//+kubebuilder:object:generate=true
+
 // MediaConfig defines configuration for secret storage destinations
 type MediaConfig struct {
 	Type   string                `json:"type"`
@@ -33,14 +42,14 @@ type SecretSantaSpec struct {
 	SecretType  string            `json:"secretType,omitempty"`
 	Labels      map[string]string `json:"labels,omitempty"`
 	Annotations map[string]string `json:"annotations,omitempty"`
+	DryRun      bool              `json:"dryRun,omitempty"`
 }
-
-//+kubebuilder:object:generate=true
 
 // SecretSantaStatus defines the observed state of SecretSanta
 type SecretSantaStatus struct {
 	LastGenerated *metav1.Time       `json:"lastGenerated,omitempty"`
 	Conditions    []metav1.Condition `json:"conditions,omitempty"`
+	DryRunResult  *DryRunResult      `json:"dryRunResult,omitempty"`
 }
 
 //+kubebuilder:object:root=true

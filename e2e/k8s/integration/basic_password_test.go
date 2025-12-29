@@ -1,6 +1,6 @@
 //go:build e2e
 
-package time
+package integration
 
 import (
 	"context"
@@ -26,7 +26,7 @@ var (
 	}
 )
 
-func TestTimeStaticGenerator(t *testing.T) {
+func TestBasicPasswordGeneration(t *testing.T) {
 	cfg, err := config.GetConfig()
 	if err != nil {
 		t.Fatalf("Failed to get config: %v", err)
@@ -43,7 +43,7 @@ func TestTimeStaticGenerator(t *testing.T) {
 	}
 
 	namespace := "default"
-	name := "e2e-time-static-test"
+	name := "basic-password-test"
 
 	secretSanta := &unstructured.Unstructured{
 		Object: map[string]interface{}{
@@ -54,19 +54,13 @@ func TestTimeStaticGenerator(t *testing.T) {
 				"namespace": namespace,
 			},
 			"spec": map[string]interface{}{
-				"template": `timestamp: {{ .Timestamp.value }}
-timezone: {{ .Timestamp.timezone }}
-epoch: {{ .Timestamp.epoch }}
-iso8601: {{ .Timestamp.iso8601 }}
-formatted: {{ .Timestamp.formatted }}
-rfc3339: {{ .Timestamp.rfc3339 }}`,
+				"template": `password: {{ .Password.value }}`,
 				"generators": []interface{}{
 					map[string]interface{}{
-						"name": "Timestamp",
-						"type": "time_static",
+						"name": "Password",
+						"type": "random_password",
 						"config": map[string]interface{}{
-							"timezone": "UTC",
-							"format":   "2006-01-02 15:04:05",
+							"length": float64(16),
 						},
 					},
 				},
@@ -99,10 +93,9 @@ rfc3339: {{ .Timestamp.rfc3339 }}`,
 	}
 
 	data := string(secret.Data["data"])
-	expectedFields := []string{"timestamp:", "timezone:", "epoch:", "iso8601:", "formatted:", "rfc3339:"}
-	for _, field := range expectedFields {
-		if !strings.Contains(data, field) {
-			t.Errorf("Field %s not found in secret data", field)
-		}
+	if !strings.Contains(data, "password:") {
+		t.Errorf("Password not found in secret data")
 	}
+
+	t.Logf("Test passed! Secret data: %s", data)
 }

@@ -19,15 +19,12 @@ import (
 
 	secretsantav1alpha1 "github.com/logicIQ/secret-santa/api/v1alpha1"
 	"github.com/logicIQ/secret-santa/pkg/generators"
-	"github.com/logicIQ/secret-santa/pkg/generators/crypto"
-	"github.com/logicIQ/secret-santa/pkg/generators/random"
-	timegens "github.com/logicIQ/secret-santa/pkg/generators/time"
-	"github.com/logicIQ/secret-santa/pkg/generators/tls"
 	"github.com/logicIQ/secret-santa/pkg/media"
 	"github.com/logicIQ/secret-santa/pkg/media/aws"
 	"github.com/logicIQ/secret-santa/pkg/media/gcp"
 	"github.com/logicIQ/secret-santa/pkg/media/k8s"
 	tmplpkg "github.com/logicIQ/secret-santa/pkg/template"
+	"github.com/logicIQ/secret-santa/pkg/validation"
 )
 
 const (
@@ -98,6 +95,11 @@ func (r *SecretSantaReconciler) reconcileSecret(ctx context.Context, secretSanta
 	log := log.FromContext(ctx)
 	log.V(1).Info("Reconciling secret", "templateLength", len(secretSanta.Spec.Template))
 
+	// Handle dry-run mode (from spec or controller flag)
+	if secretSanta.Spec.DryRun || r.DryRun {
+		return r.handleDryRun(ctx, secretSanta)
+	}
+
 	// Check if we already processed this SecretSanta successfully
 	for _, condition := range secretSanta.Status.Conditions {
 		if condition.Type == "Ready" && condition.Status == metav1.ConditionTrue {
@@ -126,41 +128,45 @@ func (r *SecretSantaReconciler) reconcileSecret(ctx context.Context, secretSanta
 		return ctrl.Result{}, err
 	}
 
+	// Validate generators first
+	if err := validation.ValidateGeneratorConfigs(secretSanta.Spec.Generators); err != nil {
+		log.Error(err, "Generator validation failed")
+		RecordReconcileError(secretSanta.Name, secretSanta.Namespace, "generator_validation_failed")
+		if updateErr := r.updateStatus(ctx, secretSanta, "DryRunFailed", "False", err.Error()); updateErr != nil {
+			log.Error(updateErr, "Failed to update status")
+		}
+		return ctrl.Result{}, nil
+	}
+
 	templateData, err := r.generateTemplateData(secretSanta.Spec.Generators)
 	if err != nil {
 		log.Error(err, "Failed to generate template data")
 		RecordReconcileError(secretSanta.Name, secretSanta.Namespace, "generator_failed")
-		return ctrl.Result{}, err
+		if updateErr := r.updateStatus(ctx, secretSanta, "GeneratorFailed", "False", err.Error()); updateErr != nil {
+			log.Error(updateErr, "Failed to update status")
+		}
+		return ctrl.Result{}, nil
 	}
 	log.V(1).Info("Template data generated", "generators", len(secretSanta.Spec.Generators))
 
 	if err := r.validateTemplate(secretSanta.Spec.Template); err != nil {
 		log.Error(err, "Template validation failed")
 		RecordTemplateValidationError(secretSanta.Name, secretSanta.Namespace)
-		if !r.DryRun {
-			if updateErr := r.updateStatus(ctx, secretSanta, "TemplateFailed", "False", err.Error()); updateErr != nil {
-				log.Error(updateErr, "Failed to update status")
-			}
+		if updateErr := r.updateStatus(ctx, secretSanta, "TemplateFailed", "False", err.Error()); updateErr != nil {
+			log.Error(updateErr, "Failed to update status")
 		}
-		return ctrl.Result{}, err
+		return ctrl.Result{}, nil
 	}
 
 	secretData, err := r.executeTemplate(secretSanta.Spec.Template, templateData)
 	if err != nil {
 		log.Error(err, "Template execution failed")
-		if !r.DryRun {
-			if updateErr := r.updateStatus(ctx, secretSanta, "TemplateExecutionFailed", "False", err.Error()); updateErr != nil {
-				log.Error(updateErr, "Failed to update status")
-			}
+		if updateErr := r.updateStatus(ctx, secretSanta, "TemplateExecutionFailed", "False", err.Error()); updateErr != nil {
+			log.Error(updateErr, "Failed to update status")
 		}
-		return ctrl.Result{}, err
-	}
-	log.V(1).Info("Template executed successfully", "dataSize", len(secretData))
-
-	if r.DryRun {
-		log.Info("DRY RUN: Template execution successful", "dataSize", len(secretData))
 		return ctrl.Result{}, nil
 	}
+	log.V(1).Info("Template executed successfully", "dataSize", len(secretData))
 
 	return r.storeSecret(ctx, secretSanta, secretData)
 }
@@ -303,53 +309,11 @@ func (r *SecretSantaReconciler) generateTemplateData(generatorConfigs []secretsa
 		}
 
 		log := ctrl.Log.WithName("generator").WithValues("name", config.Name, "type", config.Type)
-		var gen generators.Generator
-
-		switch config.Type {
-
-		case "tls_private_key":
-			gen = &tls.PrivateKeyGenerator{}
-		case "tls_self_signed_cert":
-			gen = &tls.SelfSignedCertGenerator{}
-		case "tls_cert_request":
-			gen = &tls.CertRequestGenerator{}
-		case "tls_locally_signed_cert":
-			gen = &tls.LocallySignedCertGenerator{}
-
-		case "random_password":
-			gen = &random.PasswordGenerator{}
-		case "random_string":
-			gen = &random.StringGenerator{}
-		case "random_uuid":
-			gen = &random.UUIDGenerator{}
-		case "random_integer":
-			gen = &random.IntegerGenerator{}
-		case "random_bytes":
-			gen = &random.BytesGenerator{}
-		case "random_id":
-			gen = &random.IDGenerator{}
-
-		case "time_static":
-			gen = &timegens.StaticGenerator{}
-
-		case "crypto_hmac":
-			gen = &crypto.HMACGenerator{}
-		case "crypto_aes_key":
-			gen = &crypto.AESKeyGenerator{}
-		case "crypto_rsa_key":
-			gen = &crypto.RSAKeyGenerator{}
-		case "crypto_ed25519_key":
-			gen = &crypto.ED25519KeyGenerator{}
-		case "crypto_chacha20_key":
-			gen = &crypto.ChaCha20KeyGenerator{}
-		case "crypto_xchacha20_key":
-			gen = &crypto.XChaCha20KeyGenerator{}
-		case "crypto_ecdsa_key":
-			gen = &crypto.ECDSAKeyGenerator{}
-		case "crypto_ecdh_key":
-			gen = &crypto.ECDHKeyGenerator{}
-		default:
-			continue
+		
+		// Get generator from registry
+		gen, err := generators.Get(config.Type)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get generator %s: %w", config.Name, err)
 		}
 
 		// Convert RawExtension to map[string]interface{}
@@ -462,6 +426,77 @@ func (r *SecretSantaReconciler) updateStatus(ctx context.Context, secretSanta *s
 		return nil
 	}
 	return err
+}
+
+func (r *SecretSantaReconciler) handleDryRun(ctx context.Context, secretSanta *secretsantav1alpha1.SecretSanta) (ctrl.Result, error) {
+	log := log.FromContext(ctx)
+	log.Info("Running dry-run with masked output")
+
+	// Validate template first
+	if err := validation.ValidateTemplate(secretSanta.Spec.Template); err != nil {
+		log.Error(err, "Template validation failed")
+		if updateErr := r.updateStatus(ctx, secretSanta, "DryRunFailed", "False", fmt.Sprintf("Template validation failed: %v", err)); updateErr != nil {
+			log.Error(updateErr, "Failed to update dry-run status")
+		}
+		return ctrl.Result{}, nil
+	}
+
+	// Validate generators
+	if err := validation.ValidateGeneratorConfigs(secretSanta.Spec.Generators); err != nil {
+		log.Error(err, "Generator validation failed")
+		if updateErr := r.updateStatus(ctx, secretSanta, "DryRunFailed", "False", fmt.Sprintf("Generator validation failed: %v", err)); updateErr != nil {
+			log.Error(updateErr, "Failed to update dry-run status")
+		}
+		return ctrl.Result{}, nil
+	}
+
+	// Generate template data
+	templateData, err := r.generateTemplateData(secretSanta.Spec.Generators)
+	if err != nil {
+		log.Error(err, "Failed to generate template data for dry-run")
+		if updateErr := r.updateStatus(ctx, secretSanta, "DryRunFailed", "False", err.Error()); updateErr != nil {
+			log.Error(updateErr, "Failed to update dry-run status")
+		}
+		return ctrl.Result{}, nil
+	}
+
+	// Execute template
+	secretData, err := r.executeTemplate(secretSanta.Spec.Template, templateData)
+	if err != nil {
+		log.Error(err, "Template execution failed during dry-run")
+		if updateErr := r.updateStatus(ctx, secretSanta, "DryRunFailed", "False", err.Error()); updateErr != nil {
+			log.Error(updateErr, "Failed to update dry-run status")
+		}
+		return ctrl.Result{}, nil
+	}
+
+	// Mask sensitive data
+	maskedOutput := validation.MaskSensitiveData(secretData)
+
+	// Collect generator names used
+	generatorsUsed := make([]string, len(secretSanta.Spec.Generators))
+	for i, gen := range secretSanta.Spec.Generators {
+		generatorsUsed[i] = fmt.Sprintf("%s (%s)", gen.Name, gen.Type)
+	}
+
+	// Create dry-run result
+	now := metav1.Now()
+	dryRunResult := &secretsantav1alpha1.DryRunResult{
+		MaskedOutput:   maskedOutput,
+		GeneratorsUsed: generatorsUsed,
+		ExecutionTime:  &now,
+	}
+
+	// Update status with dry-run result
+	secretSanta.Status.DryRunResult = dryRunResult
+
+	if err := r.updateStatus(ctx, secretSanta, "DryRunComplete", "True", "Dry-run completed successfully with masked output"); err != nil {
+		log.Error(err, "Failed to update dry-run status")
+		return ctrl.Result{}, err
+	}
+
+	log.Info("Dry-run completed successfully", "generatorsUsed", len(generatorsUsed))
+	return ctrl.Result{}, nil
 }
 
 func getMapKeys(m map[string]string) []string {

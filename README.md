@@ -12,6 +12,8 @@ Kubernetes operator for generating secrets with templates and storing them in mu
 - **Template Engine**: Go templates with crypto, random, and TLS generators
 - **Create-Once**: Secrets generated once and never modified
 - **Cloud Integration**: AWS and GCP authentication support
+- **Dry-Run Mode**: Validate templates and preview masked output without creating secrets
+- **Metadata**: Automatic metadata for traceability and observability
 
 ## Installation
 
@@ -64,6 +66,40 @@ helm install secret-santa logiciq/secret-santa \
 ```
 
 ## Quick Start
+
+### Dry-Run Mode
+
+Validate templates and preview output without creating secrets:
+
+```yaml
+apiVersion: secrets.secret-santa.io/v1alpha1
+kind: SecretSanta
+metadata:
+  name: dry-run-example
+spec:
+  dryRun: true
+  template: |
+    {
+      "password": "{{ .pass.value }}",
+      "api_key": "{{ .key.value }}"
+    }
+  generators:
+    - name: pass
+      type: random_password
+      config:
+        length: 32
+    - name: key
+      type: random_string
+      config:
+        length: 64
+```
+
+Check the status for masked output:
+
+```bash
+kubectl get secretsanta dry-run-example -o yaml
+# status.dryRunResult.maskedOutput shows structure with <MASKED> values
+```
 
 ### Basic Password Generation (Kubernetes Secret)
 
@@ -288,7 +324,70 @@ serviceAccount:
 SECRET_SANTA_MAX_CONCURRENT_RECONCILES=5
 SECRET_SANTA_WATCH_NAMESPACES=default,production
 SECRET_SANTA_LOG_LEVEL=debug
+SECRET_SANTA_DRY_RUN=true
+SECRET_SANTA_ENABLE_METADATA=false
 AWS_REGION=us-west-2
 GOOGLE_APPLICATION_CREDENTIALS=/path/to/service-account.json
 GCP_PROJECT_ID=my-gcp-project
+```
+
+## Dry-Run and Validation
+
+### Template Validation
+
+Use `dryRun: true` to validate templates and generator configurations:
+
+- Validates template syntax
+- Checks generator types and configurations
+- Executes generators and templates
+- Masks sensitive output in status
+- No secrets are created
+
+### Status Output
+
+```yaml
+status:
+  dryRunResult:
+    maskedOutput: |
+      {
+        "password": "<MASKED>",
+        "api_key": "<MASKED>"
+      }
+    generatorsUsed:
+      - "pass (random_password)"
+      - "key (random_string)"
+    executionTime: "2024-01-15T10:30:00Z"
+  conditions:
+    - type: DryRunComplete
+      status: "True"
+      message: "Dry-run completed successfully with masked output"
+```
+
+### Global Dry-Run
+
+Enable dry-run for all resources via controller flag:
+
+```bash
+helm install secret-santa logiciq/secret-santa \
+  --set controller.args.dryRun=true
+```
+
+## Secret Metadata
+
+Automatic metadata is added to all generated secrets for traceability:
+
+### Kubernetes Secrets (Annotations)
+- `secrets.secret-santa.io/created-at`: Creation timestamp
+- `secrets.secret-santa.io/generator-types`: Generator types used
+- `secrets.secret-santa.io/template-checksum`: Template checksum
+- `secrets.secret-santa.io/source-cr`: Source SecretSanta reference
+
+### AWS/GCP (Tags/Labels)
+Same metadata keys with platform-specific formatting.
+
+### Disable Metadata
+
+```bash
+helm install secret-santa logiciq/secret-santa \
+  --set controller.args.enableMetadata=false
 ```

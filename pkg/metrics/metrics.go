@@ -4,7 +4,6 @@ import (
 	"sync"
 
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/collectors"
 	"sigs.k8s.io/controller-runtime/pkg/metrics"
 )
 
@@ -263,32 +262,24 @@ var registerOnce sync.Once
 func init() {
 	registerOnce.Do(func() {
 		metrics.Registry.MustRegister(
-			// Controller metrics
 			SuccessGenerationTotal,
 			FailedGenerationTotal,
 			LoopSecondsTotal,
 			SecretsSkippedTotal,
 			TemplateValidationFailedTotal,
-			// Generator metrics
 			GeneratorExecutionsTotal,
 			GeneratorResponseTime,
-			// Client metrics
 			KubernetesClientFailTotal,
 			KubernetesClientRequestsTotal,
-			// Operational metrics
 			LastReconciliationTime,
 			ReconciliationStatus,
 			ManagedSecretsTotal,
 			SecretGenerationStatus,
-			// Cannon-style simple metrics
 			SyncCallCount,
 			SyncErrorCount,
 			LastReconcileDuration,
 			ReconcileActive,
 			SecretInstances,
-			// Go runtime metrics
-			collectors.NewGoCollector(),
-			collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}),
 		)
 	})
 }

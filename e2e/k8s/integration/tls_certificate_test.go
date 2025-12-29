@@ -1,32 +1,22 @@
 //go:build e2e
 
-package time
+package integration
 
 import (
 	"context"
-	"strings"
 	"testing"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
 )
 
-var (
-	secretSantaGVR = schema.GroupVersionResource{
-		Group:    "secrets.secret-santa.io",
-		Version:  "v1alpha1",
-		Resource: "secretsanta",
-	}
-)
-
-func TestTimeStaticGenerator(t *testing.T) {
+func TestTLSCertificate(t *testing.T) {
 	cfg, err := config.GetConfig()
 	if err != nil {
 		t.Fatalf("Failed to get config: %v", err)
@@ -43,7 +33,7 @@ func TestTimeStaticGenerator(t *testing.T) {
 	}
 
 	namespace := "default"
-	name := "e2e-time-static-test"
+	name := "tls-certificate-test"
 
 	secretSanta := &unstructured.Unstructured{
 		Object: map[string]interface{}{
@@ -54,23 +44,31 @@ func TestTimeStaticGenerator(t *testing.T) {
 				"namespace": namespace,
 			},
 			"spec": map[string]interface{}{
-				"template": `timestamp: {{ .Timestamp.value }}
-timezone: {{ .Timestamp.timezone }}
-epoch: {{ .Timestamp.epoch }}
-iso8601: {{ .Timestamp.iso8601 }}
-formatted: {{ .Timestamp.formatted }}
-rfc3339: {{ .Timestamp.rfc3339 }}`,
+				"template": `tls.key: {{ .TLSKey.private_key_pem }}
+tls.crt: {{ .TLSCert.cert_pem }}`,
 				"generators": []interface{}{
 					map[string]interface{}{
-						"name": "Timestamp",
-						"type": "time_static",
+						"name": "TLSKey",
+						"type": "tls_private_key",
 						"config": map[string]interface{}{
-							"timezone": "UTC",
-							"format":   "2006-01-02 15:04:05",
+							"algorithm": "RSA",
+							"rsa_bits":  float64(2048),
+						},
+					},
+					map[string]interface{}{
+						"name": "TLSCert",
+						"type": "tls_self_signed_cert",
+						"config": map[string]interface{}{
+							"key_algorithm": "RSA",
+							"rsa_bits":      float64(2048),
+							"subject": map[string]interface{}{
+								"common_name": "example.com",
+							},
+							"validity_period_hours": float64(8760),
 						},
 					},
 				},
-				"secretType": "Opaque",
+				"secretType": "kubernetes.io/tls",
 			},
 		},
 	}
@@ -94,15 +92,14 @@ rfc3339: {{ .Timestamp.rfc3339 }}`,
 		t.Fatalf("Failed to get secret: %v", err)
 	}
 
-	if secret.Type != corev1.SecretTypeOpaque {
-		t.Errorf("Expected secret type Opaque, got %s", secret.Type)
+	if secret.Type != corev1.SecretTypeTLS {
+		t.Errorf("Expected secret type kubernetes.io/tls, got %s", secret.Type)
 	}
 
-	data := string(secret.Data["data"])
-	expectedFields := []string{"timestamp:", "timezone:", "epoch:", "iso8601:", "formatted:", "rfc3339:"}
-	for _, field := range expectedFields {
-		if !strings.Contains(data, field) {
-			t.Errorf("Field %s not found in secret data", field)
-		}
+	if _, ok := secret.Data["tls.crt"]; !ok {
+		t.Error("Missing tls.crt in TLS secret")
+	}
+	if _, ok := secret.Data["tls.key"]; !ok {
+		t.Error("Missing tls.key in TLS secret")
 	}
 }
