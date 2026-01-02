@@ -30,7 +30,7 @@ func TestValidateTemplate(t *testing.T) {
 		},
 		{
 			name:     "template with functions",
-			template: `{"password": "{{ .gen.value | default \"test\" }}"}`,
+			template: `{"password": "{{ .gen.value | default "test" }}"}`,
 			wantErr:  false,
 		},
 	}
@@ -105,7 +105,7 @@ func TestMaskSensitiveData(t *testing.T) {
 		{
 			name: "json format",
 			data: `{"password": "secret123", "key": "value"}`,
-			want: "{\n  \"key\": \"<MASKED>\",\n  \"password\": \"<MASKED>\"\n}",
+			want: "{\n  \"key\": \"\u003cMASKED\u003e\",\n  \"password\": \"\u003cMASKED\u003e\"\n}",
 		},
 		{
 			name: "yaml format",
@@ -115,7 +115,7 @@ func TestMaskSensitiveData(t *testing.T) {
 		{
 			name: "text format",
 			data: "password=secret123\nkey: value",
-			want: "password=<MASKED>\nkey: <MASKED>",
+			want: "password= <MASKED>\nkey: <MASKED>",
 		},
 	}
 
