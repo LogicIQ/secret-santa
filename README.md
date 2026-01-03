@@ -8,10 +8,10 @@ Kubernetes operator for generating secrets with templates and storing them in mu
 
 ## Features
 
-- **Multiple Storage**: Kubernetes secrets, AWS Secrets Manager, AWS Parameter Store, GCP Secret Manager
+- **Multiple Storage**: Kubernetes secrets, AWS Secrets Manager, AWS Parameter Store, Azure Key Vault, GCP Secret Manager
 - **Template Engine**: Go templates with crypto, random, and TLS generators
 - **Create-Once**: Secrets generated once and never modified
-- **Cloud Integration**: AWS and GCP authentication support
+- **Cloud Integration**: AWS, Azure, and GCP authentication support
 - **Dry-Run Mode**: Validate templates and preview masked output without creating secrets
 - **Metadata**: Automatic metadata for traceability and observability
 
@@ -42,6 +42,27 @@ helm install secret-santa logiciq/secret-santa \
   --set aws.credentials.useServiceAccount=false \
   --set aws.credentials.accessKeyId=AKIA... \
   --set aws.credentials.secretAccessKey=...
+```
+
+### Azure Setup (Optional)
+
+For Azure Key Vault:
+
+```bash
+# With service principal
+helm install secret-santa logiciq/secret-santa \
+  --set azure.enabled=true \
+  --set azure.tenantId=00000000-0000-0000-0000-000000000000 \
+  --set azure.credentials.useManagedIdentity=false \
+  --set azure.credentials.clientId=00000000-0000-0000-0000-000000000000 \
+  --set azure.credentials.clientSecret=your-client-secret
+
+# With managed identity (AKS)
+helm install secret-santa logiciq/secret-santa \
+  --set azure.enabled=true \
+  --set azure.tenantId=00000000-0000-0000-0000-000000000000 \
+  --set azure.credentials.useManagedIdentity=true \
+  --set serviceAccount.annotations."azure\.workload\.identity/client-id"=00000000-0000-0000-0000-000000000000
 ```
 
 ### GCP Setup (Optional)
@@ -192,6 +213,31 @@ spec:
       parameter_name: /app/database-url
 ```
 
+### Azure Key Vault
+
+```yaml
+apiVersion: secrets.secret-santa.io/v1alpha1
+kind: SecretSanta
+metadata:
+  name: azure-secret
+spec:
+  template: |
+    {
+      "username": "admin",
+      "password": "{{ .pass.password }}"
+    }
+  generators:
+    - name: pass
+      type: random_password
+      config:
+        length: 24
+  media:
+    type: azure-key-vault
+    config:
+      vault_url: https://my-vault.vault.azure.net
+      secret_name: app-credentials
+```
+
 ### GCP Secret Manager
 
 ```yaml
@@ -255,6 +301,17 @@ media:
     kms_key_id: alias/my-kms-key        # Optional
 ```
 
+### Azure Key Vault
+
+```yaml
+media:
+  type: azure-key-vault
+  config:
+    vault_url: https://my-vault.vault.azure.net  # Required
+    secret_name: my-custom-secret                # Optional
+    tenant_id: 00000000-0000-0000-0000-000000000000  # Optional - uses default if empty
+```
+
 ### GCP Secret Manager
 
 ```yaml
@@ -302,6 +359,17 @@ aws:
   credentials:
     useServiceAccount: true
 
+azure:
+  enabled: true
+  tenantId: 00000000-0000-0000-0000-000000000000
+  credentials:
+    useManagedIdentity: true
+    # OR for service principal:
+    # useManagedIdentity: false
+    # clientId: 00000000-0000-0000-0000-000000000000
+    # existingSecret: azure-credentials
+    # existingSecretKey: client-secret
+
 gcp:
   enabled: true
   projectId: my-gcp-project
@@ -315,6 +383,7 @@ gcp:
 serviceAccount:
   annotations:
     eks.amazonaws.com/role-arn: arn:aws:iam::123456789012:role/secret-santa
+    azure.workload.identity/client-id: 00000000-0000-0000-0000-000000000000
     iam.gke.io/gcp-service-account: secret-santa@my-project.iam.gserviceaccount.com
 ```
 
@@ -327,6 +396,8 @@ SECRET_SANTA_LOG_LEVEL=debug
 SECRET_SANTA_DRY_RUN=true
 SECRET_SANTA_ENABLE_METADATA=false
 AWS_REGION=us-west-2
+AZURE_TENANT_ID=00000000-0000-0000-0000-000000000000
+AZURE_CLIENT_ID=00000000-0000-0000-0000-000000000000
 GOOGLE_APPLICATION_CREDENTIALS=/path/to/service-account.json
 GCP_PROJECT_ID=my-gcp-project
 ```
@@ -382,7 +453,7 @@ Automatic metadata is added to all generated secrets for traceability:
 - `secrets.secret-santa.io/template-checksum`: Template checksum
 - `secrets.secret-santa.io/source-cr`: Source SecretSanta reference
 
-### AWS/GCP (Tags/Labels)
+### AWS/Azure/GCP (Tags/Labels)
 Same metadata keys with platform-specific formatting.
 
 ### Disable Metadata
