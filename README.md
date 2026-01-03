@@ -2,7 +2,9 @@
 
 ![Secret Santa](https://raw.githubusercontent.com/LogicIQ/secret-santa/main/docs/images/secret-santa.webp)
 
-Kubernetes operator for generating secrets with templates and storing them in multiple destinations.
+Kubernetes operator for generating secrets with templates and storing them in multiple destinations. 
+
+It plays well with Kubernetes External Secrets too.
 
 **[Visit Project Page](https://logiciq.ca/secret-santa)**
 
