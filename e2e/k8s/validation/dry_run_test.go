@@ -129,17 +129,26 @@ func TestDryRunValidation(t *testing.T) {
 	}
 
 	dryRunResult, found, err := unstructured.NestedMap(finalStatus, "dryRunResult")
-	if err != nil || !found {
+	if err != nil {
+		t.Fatalf("Failed to get dryRunResult: %v", err)
+	}
+	if !found {
 		t.Fatal("DryRunResult not found in status")
 	}
 
 	maskedOutput, found, err := unstructured.NestedString(dryRunResult, "maskedOutput")
-	if err != nil || !found {
+	if err != nil {
+		t.Fatalf("Failed to get maskedOutput: %v", err)
+	}
+	if !found {
 		t.Fatal("MaskedOutput not found in dryRunResult")
 	}
 
 	generatorsUsed, found, err := unstructured.NestedStringSlice(dryRunResult, "generatorsUsed")
-	if err != nil || !found {
+	if err != nil {
+		t.Fatalf("Failed to get generatorsUsed: %v", err)
+	}
+	if !found {
 		t.Fatal("GeneratorsUsed not found in dryRunResult")
 	}
 
