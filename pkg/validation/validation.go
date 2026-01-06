@@ -17,8 +17,32 @@ func ValidateTemplate(tmplStr string) error {
 		return fmt.Errorf("template cannot be empty")
 	}
 
+	// Check for dangerous patterns that could lead to code injection
+	dangerousPatterns := []struct {
+		pattern string
+		message string
+	}{
+		{`{{\.}}`, "direct root context access is not allowed"},
+		{`{{\s*range\s+\.\s*}}`, "ranging over root context is not allowed"},
+		{`{{\s*with\s+\.\s*}}`, "with root context is not allowed"},
+		{`{{.*call.*}}`, "call function is not allowed"},
+		{`{{.*js.*}}`, "js function is not allowed"},
+		{`{{.*urlquery.*}}`, "urlquery function is not allowed"},
+	}
+
+	for _, dp := range dangerousPatterns {
+		if matched, _ := regexp.MatchString(dp.pattern, tmplStr); matched {
+			return fmt.Errorf("template validation failed: %s", dp.message)
+		}
+	}
+
+	// Validate template syntax with restricted function map
 	_, err := template.New("validation").Funcs(tmplpkg.FuncMap()).Parse(tmplStr)
-	return err
+	if err != nil {
+		return fmt.Errorf("template syntax error: %w", err)
+	}
+
+	return nil
 }
 
 func ValidateGeneratorConfigs(configs []secretsantav1alpha1.GeneratorConfig) error {

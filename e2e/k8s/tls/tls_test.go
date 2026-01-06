@@ -124,7 +124,9 @@ tls.key: {{ .PrivateKey.private_key_pem | b64enc }}`,
 	}
 
 	block, _ := pem.Decode(certDecoded)
-	if block == nil || block.Type != "CERTIFICATE" {
+	if block == nil {
+		t.Error("Failed to decode certificate PEM")
+	} else if block.Type != "CERTIFICATE" {
 		t.Error("Invalid certificate PEM format")
 	}
 
@@ -134,7 +136,9 @@ tls.key: {{ .PrivateKey.private_key_pem | b64enc }}`,
 	}
 
 	keyBlock, _ := pem.Decode(keyDecoded)
-	if keyBlock == nil || keyBlock.Type != "RSA PRIVATE KEY" {
+	if keyBlock == nil {
+		t.Error("Failed to decode private key PEM")
+	} else if keyBlock.Type != "RSA PRIVATE KEY" {
 		t.Error("Invalid private key PEM format")
 	}
 }

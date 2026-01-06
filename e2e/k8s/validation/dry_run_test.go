@@ -243,12 +243,18 @@ func TestDryRunValidationError(t *testing.T) {
 		}
 
 		status, found, err := unstructured.NestedMap(obj.Object, "status")
-		if err != nil || !found {
+		if err != nil {
+			return false, err
+		}
+		if !found {
 			return false, nil
 		}
 
 		conditions, found, err := unstructured.NestedSlice(status, "conditions")
-		if err != nil || !found {
+		if err != nil {
+			return false, err
+		}
+		if !found {
 			return false, nil
 		}
 

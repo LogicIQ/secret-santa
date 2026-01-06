@@ -45,7 +45,7 @@ metadata:
   namespace: default
 spec:
   template: |
-    {{ .dburl.password }}
+    postgresql://user:{{ .dburl.value }}@db.example.com/app
   generators:
     - name: dburl
       type: random_string

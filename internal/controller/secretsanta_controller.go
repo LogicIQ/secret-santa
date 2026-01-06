@@ -287,7 +287,12 @@ func (r *SecretSantaReconciler) createMedia(secretSanta *secretsantav1alpha1.Sec
 }
 
 func (r *SecretSantaReconciler) executeTemplate(tmplStr string, data map[string]interface{}) (string, error) {
-	tmpl, err := template.New("secret").Funcs(tmplpkg.FuncMap()).Parse(tmplStr)
+	// Validate template string to prevent injection
+	if err := validation.ValidateTemplate(tmplStr); err != nil {
+		return "", fmt.Errorf("template validation failed: %w", err)
+	}
+
+	tmpl, err := template.New("secret").Option("missingkey=error").Funcs(tmplpkg.FuncMap()).Parse(tmplStr)
 	if err != nil {
 		return "", fmt.Errorf("failed to parse template: %w", err)
 	}
@@ -345,12 +350,7 @@ func (r *SecretSantaReconciler) generateTemplateData(generatorConfigs []secretsa
 }
 
 func (r *SecretSantaReconciler) validateTemplate(tmplStr string) error {
-	if tmplStr == "" {
-		return fmt.Errorf("template cannot be empty")
-	}
-
-	_, err := template.New("validation").Funcs(tmplpkg.FuncMap()).Parse(tmplStr)
-	return err
+	return validation.ValidateTemplate(tmplStr)
 }
 
 func (r *SecretSantaReconciler) shouldProcess(secretSanta *secretsantav1alpha1.SecretSanta) bool {

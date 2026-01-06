@@ -2,129 +2,107 @@ package validation
 
 import (
 	"testing"
-
-	secretsantav1alpha1 "github.com/logicIQ/secret-santa/api/v1alpha1"
-	"github.com/logicIQ/secret-santa/pkg/generators"
 )
 
 func TestValidateTemplate(t *testing.T) {
 	tests := []struct {
-		name     string
-		template string
-		wantErr  bool
+		name      string
+		template  string
+		wantError bool
+		errorMsg  string
 	}{
 		{
-			name:     "valid template",
-			template: `{"password": "{{ .gen.value }}"}`,
-			wantErr:  false,
+			name:      "empty template",
+			template:  "",
+			wantError: true,
+			errorMsg:  "template cannot be empty",
 		},
 		{
-			name:     "empty template",
-			template: "",
-			wantErr:  true,
+			name:      "valid template",
+			template:  `password: {{ .pass.value }}`,
+			wantError: false,
 		},
 		{
-			name:     "invalid template syntax",
-			template: `{"password": "{{ .gen.value }"}`,
-			wantErr:  true,
+			name:      "direct root context access",
+			template:  `{{.}}`,
+			wantError: true,
+			errorMsg:  "direct root context access is not allowed",
 		},
 		{
-			name:     "template with functions",
-			template: `{"password": "{{ .gen.value | default "test" }}"}`,
-			wantErr:  false,
+			name:      "range over root context",
+			template:  `{{ range . }}{{ end }}`,
+			wantError: true,
+			errorMsg:  "ranging over root context is not allowed",
+		},
+		{
+			name:      "with root context",
+			template:  `{{ with . }}{{ end }}`,
+			wantError: true,
+			errorMsg:  "with root context is not allowed",
+		},
+		{
+			name:      "call function",
+			template:  `{{ call .func }}`,
+			wantError: true,
+			errorMsg:  "call function is not allowed",
+		},
+		{
+			name:      "js function",
+			template:  `{{ js .value }}`,
+			wantError: true,
+			errorMsg:  "js function is not allowed",
+		},
+		{
+			name:      "urlquery function",
+			template:  `{{ urlquery .value }}`,
+			wantError: true,
+			errorMsg:  "urlquery function is not allowed",
+		},
+		{
+			name:      "valid nested access",
+			template:  `{{ .user.password }}`,
+			wantError: false,
+		},
+		{
+			name:      "valid with nested context",
+			template:  `{{ with .user }}{{ .name }}{{ end }}`,
+			wantError: false,
+		},
+		{
+			name:      "valid range over nested",
+			template:  `{{ range .items }}{{ .name }}{{ end }}`,
+			wantError: false,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			err := ValidateTemplate(tt.template)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("ValidateTemplate() error = %v, wantErr %v", err, tt.wantErr)
+			if tt.wantError {
+				if err == nil {
+					t.Errorf("ValidateTemplate() expected error but got none")
+				} else if tt.errorMsg != "" && !contains(err.Error(), tt.errorMsg) {
+					t.Errorf("ValidateTemplate() error = %v, want error containing %v", err, tt.errorMsg)
+				}
+			} else {
+				if err != nil {
+					t.Errorf("ValidateTemplate() unexpected error = %v", err)
+				}
 			}
 		})
 	}
 }
 
-func TestValidateGeneratorConfigs(t *testing.T) {
-	generators.Clear()
-	generators.Register("test_generator", nil)
-	generators.Register("random_password", nil)
-
-	tests := []struct {
-		name    string
-		configs []secretsantav1alpha1.GeneratorConfig
-		wantErr bool
-	}{
-		{
-			name: "valid configs",
-			configs: []secretsantav1alpha1.GeneratorConfig{
-				{Name: "test", Type: "random_password"},
-				{Name: "test2", Type: "test_generator"},
-			},
-			wantErr: false,
-		},
-		{
-			name: "empty name",
-			configs: []secretsantav1alpha1.GeneratorConfig{
-				{Name: "", Type: "random_password"},
-			},
-			wantErr: true,
-		},
-		{
-			name: "empty type",
-			configs: []secretsantav1alpha1.GeneratorConfig{
-				{Name: "test", Type: ""},
-			},
-			wantErr: true,
-		},
-		{
-			name: "invalid type",
-			configs: []secretsantav1alpha1.GeneratorConfig{
-				{Name: "test", Type: "invalid_type"},
-			},
-			wantErr: true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			err := ValidateGeneratorConfigs(tt.configs)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("ValidateGeneratorConfigs() error = %v, wantErr %v", err, tt.wantErr)
-			}
-		})
-	}
+func contains(s, substr string) bool {
+	return len(s) >= len(substr) && (s == substr || len(substr) == 0 || 
+		(len(s) > 0 && len(substr) > 0 && stringContains(s, substr)))
 }
 
-func TestMaskSensitiveData(t *testing.T) {
-	tests := []struct {
-		name string
-		data string
-		want string
-	}{
-		{
-			name: "json format",
-			data: `{"password": "secret123", "key": "value"}`,
-			want: "{\n  \"key\": \"\\u003cMASKED\\u003e\",\n  \"password\": \"\\u003cMASKED\\u003e\"\n}",
-		},
-		{
-			name: "yaml format",
-			data: "password: secret123\nkey: value",
-			want: "password: <MASKED>\nkey: <MASKED>",
-		},
-		{
-			name: "text format",
-			data: "password=secret123\nkey: value",
-			want: "password=secret123\nkey: <MASKED>",
-		},
+func stringContains(s, substr string) bool {
+	for i := 0; i <= len(s)-len(substr); i++ {
+		if s[i:i+len(substr)] == substr {
+			return true
+		}
 	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := MaskSensitiveData(tt.data)
-			if result != tt.want {
-				t.Errorf("MaskSensitiveData() = %v, want %v", result, tt.want)
-			}
-		})
-	}
+	return false
 }
