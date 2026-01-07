@@ -39,6 +39,7 @@ func TestBytesGenerator_Generate(t *testing.T) {
 			for _, key := range expectedKeys {
 				if _, ok := result[key]; !ok {
 					t.Errorf("Generate() missing key %s", key)
+					return
 				}
 			}
 
@@ -46,9 +47,11 @@ func TestBytesGenerator_Generate(t *testing.T) {
 			decoded, err := base64.StdEncoding.DecodeString(result["value"])
 			if err != nil {
 				t.Errorf("Generate() invalid base64 value: %v", err)
+				return
 			}
 			if len(decoded) != tt.length {
 				t.Errorf("Generate() decoded length = %d, want %d", len(decoded), tt.length)
+				return
 			}
 		})
 	}

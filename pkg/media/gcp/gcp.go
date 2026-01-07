@@ -82,7 +82,7 @@ func (m *GCPSecretManagerMedia) Store(ctx context.Context, secretSanta *secretsa
 	}
 
 	_, err = client.CreateSecret(ctx, createReq)
-	if err != nil {
+	if err != nil && !strings.Contains(err.Error(), "already exists") {
 		return fmt.Errorf("failed to create secret: %w", err)
 	}
 

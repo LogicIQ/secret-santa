@@ -26,7 +26,9 @@ type MediaConfig struct {
 
 // GeneratorConfig defines configuration for secret generators
 type GeneratorConfig struct {
+	// +kubebuilder:validation:MinLength=1
 	Name   string                `json:"name"`
+	// +kubebuilder:validation:MinLength=1
 	Type   string                `json:"type"`
 	Config *runtime.RawExtension `json:"config,omitempty"`
 }
@@ -35,7 +37,9 @@ type GeneratorConfig struct {
 
 // SecretSantaSpec defines the desired state of SecretSanta
 type SecretSantaSpec struct {
+	// +kubebuilder:validation:MinLength=1
 	Template    string            `json:"template"`
+	// +kubebuilder:validation:MinItems=1
 	Generators  []GeneratorConfig `json:"generators"`
 	Media       *MediaConfig      `json:"media,omitempty"`
 	SecretName  string            `json:"secretName,omitempty"`

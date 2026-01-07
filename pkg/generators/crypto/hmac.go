@@ -19,6 +19,10 @@ func (g *HMACGenerator) Generate(config map[string]interface{}) (map[string]stri
 	keySize := getIntConfig(config, "key_size", 32)
 	message := getStringConfig(config, "message", "")
 
+	if keySize <= 0 {
+		return nil, fmt.Errorf("key_size must be positive, got: %d", keySize)
+	}
+
 	// Generate random key if not provided
 	key := make([]byte, keySize)
 	if _, err := rand.Read(key); err != nil {

@@ -6,6 +6,7 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
+	"fmt"
 	"math/big"
 	"time"
 )
@@ -20,8 +21,13 @@ func (g *SelfSignedCertGenerator) Generate(config map[string]interface{}) (map[s
 	}
 
 	// Create certificate template
+	serialNumber, err := rand.Int(rand.Reader, new(big.Int).Lsh(big.NewInt(1), 128))
+	if err != nil {
+		return nil, err
+	}
+
 	template := x509.Certificate{
-		SerialNumber: big.NewInt(1),
+		SerialNumber: serialNumber,
 		Subject: pkix.Name{
 			CommonName: getStringConfig(config, "common_name", "localhost"),
 		},
@@ -43,6 +49,14 @@ func (g *SelfSignedCertGenerator) Generate(config map[string]interface{}) (map[s
 		Type:  "CERTIFICATE",
 		Bytes: certDER,
 	})
+	if certPEM == nil {
+		return nil, fmt.Errorf("failed to encode certificate to PEM")
+	}
+
+	// Validate the generated certificate
+	if len(certDER) == 0 {
+		return nil, fmt.Errorf("generated certificate is empty")
+	}
 
 	return map[string]string{
 		"cert_pem":            string(certPEM),

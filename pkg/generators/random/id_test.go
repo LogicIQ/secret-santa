@@ -39,6 +39,7 @@ func TestIDGenerator_Generate(t *testing.T) {
 			for _, key := range expectedKeys {
 				if _, ok := result[key]; !ok {
 					t.Errorf("Generate() missing key %s", key)
+					return
 				}
 			}
 
@@ -47,9 +48,11 @@ func TestIDGenerator_Generate(t *testing.T) {
 			hexDecoded, err := hex.DecodeString(hexValue)
 			if err != nil {
 				t.Errorf("Generate() invalid hex value: %v", err)
+				return
 			}
 			if len(hexDecoded) != tt.length {
 				t.Errorf("Generate() hex length = %d, want %d", len(hexDecoded), tt.length)
+				return
 			}
 		})
 	}

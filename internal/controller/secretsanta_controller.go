@@ -341,6 +341,11 @@ func (r *SecretSantaReconciler) generateTemplateData(generatorConfigs []secretsa
 			RecordGeneratorExecution(config.Type, "error")
 			return nil, fmt.Errorf("generator %s failed: %w", config.Name, err)
 		}
+		if result == nil {
+			log.Error(nil, "Generator returned nil result")
+			RecordGeneratorExecution(config.Type, "error")
+			return nil, fmt.Errorf("generator %s returned nil result", config.Name)
+		}
 		log.V(1).Info("Generator completed", "resultKeys", getMapKeys(result))
 		RecordGeneratorExecution(config.Type, "success")
 		data[config.Name] = result

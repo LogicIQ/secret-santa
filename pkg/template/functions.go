@@ -38,7 +38,10 @@ func Bcrypt(s string) string {
 	if len(password) > 72 {
 		password = password[:72]
 	}
-	hash, _ := bcrypt.GenerateFromPassword(password, bcrypt.DefaultCost)
+	hash, err := bcrypt.GenerateFromPassword(password, bcrypt.DefaultCost)
+	if err != nil {
+		return ""
+	}
 	return string(hash)
 }
 
