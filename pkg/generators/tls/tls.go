@@ -53,6 +53,15 @@ func (g *SelfSignedCertGenerator) Generate(config map[string]interface{}) (map[s
 		return nil, fmt.Errorf("failed to encode certificate to PEM")
 	}
 
+	// Encode private key
+	privateKeyPEM := pem.EncodeToMemory(&pem.Block{
+		Type:  "RSA PRIVATE KEY",
+		Bytes: x509.MarshalPKCS1PrivateKey(privateKey),
+	})
+	if privateKeyPEM == nil {
+		return nil, fmt.Errorf("failed to encode private key to PEM")
+	}
+
 	// Validate the generated certificate
 	if len(certDER) == 0 {
 		return nil, fmt.Errorf("generated certificate is empty")
@@ -60,6 +69,7 @@ func (g *SelfSignedCertGenerator) Generate(config map[string]interface{}) (map[s
 
 	return map[string]string{
 		"cert_pem":            string(certPEM),
+		"private_key_pem":     string(privateKeyPEM),
 		"key_algorithm":       "RSA",
 		"validity_start_time": template.NotBefore.Format(time.RFC3339),
 		"validity_end_time":   template.NotAfter.Format(time.RFC3339),

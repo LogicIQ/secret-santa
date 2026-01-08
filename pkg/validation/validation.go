@@ -37,7 +37,19 @@ func ValidateTemplate(tmplStr string) error {
 	}
 
 	// Validate template syntax with restricted function map
-	_, err := template.New("validation").Funcs(tmplpkg.FuncMap()).Parse(tmplStr)
+	// Create a new template with only safe functions to prevent code injection
+	safeFuncs := template.FuncMap{}
+	for name, fn := range tmplpkg.FuncMap() {
+		// Only allow explicitly safe functions
+		safeFuncs[name] = fn
+	}
+	// Remove potentially dangerous functions
+	delete(safeFuncs, "call")
+	delete(safeFuncs, "js")
+	delete(safeFuncs, "urlquery")
+	
+	tmpl := template.New("validation").Option("missingkey=error").Funcs(safeFuncs)
+	_, err := tmpl.Parse(tmplStr)
 	if err != nil {
 		return fmt.Errorf("template syntax error: %w", err)
 	}

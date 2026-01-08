@@ -45,6 +45,10 @@ func TestIDGenerator_Generate(t *testing.T) {
 
 			// Validate hex value (without prefix)
 			hexValue := result["value"]
+			if hexValue == "" {
+				t.Errorf("Generate() value is empty")
+				return
+			}
 			hexDecoded, err := hex.DecodeString(hexValue)
 			if err != nil {
 				t.Errorf("Generate() invalid hex value: %v", err)

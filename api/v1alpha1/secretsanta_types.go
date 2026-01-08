@@ -30,6 +30,7 @@ type GeneratorConfig struct {
 	Name   string                `json:"name"`
 	// +kubebuilder:validation:MinLength=1
 	Type   string                `json:"type"`
+	// Configuration for the generator. Validation is performed by the controller.
 	Config *runtime.RawExtension `json:"config,omitempty"`
 }
 
