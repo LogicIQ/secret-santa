@@ -13,7 +13,11 @@ func TestSHA256(t *testing.T) {
 }
 
 func TestBcrypt(t *testing.T) {
-	result := Bcrypt("password")
+	result, err := Bcrypt("password")
+	if err != nil {
+		t.Errorf("Bcrypt should not return error, got %v", err)
+		return
+	}
 	if !strings.HasPrefix(result, "$2a$") {
 		t.Errorf("Bcrypt should return hash starting with $2a$, got %s", result[:10])
 	}
