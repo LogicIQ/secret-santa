@@ -33,16 +33,16 @@ func SHA256(s string) string {
 	return hex.EncodeToString(h[:])
 }
 
-func Bcrypt(s string) string {
+func Bcrypt(s string) (string, error) {
 	password := []byte(s)
 	if len(password) > 72 {
 		password = password[:72]
 	}
 	hash, err := bcrypt.GenerateFromPassword(password, bcrypt.DefaultCost)
 	if err != nil {
-		return ""
+		return "", fmt.Errorf("bcrypt generation failed: %w", err)
 	}
-	return string(hash)
+	return string(hash), nil
 }
 
 func Entropy(s, charset string) float64 {

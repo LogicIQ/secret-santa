@@ -19,10 +19,18 @@ spec:
         app: secret-santa-controller
     spec:
       serviceAccountName: secret-santa-controller
+      restartPolicy: Always
       containers:
       - name: manager
         image: secret-santa:latest
         imagePullPolicy: Never
+        resources:
+          limits:
+            cpu: 500m
+            memory: 256Mi
+          requests:
+            cpu: 100m
+            memory: 128Mi
         ports:
         - containerPort: 8080
           name: metrics
@@ -34,9 +42,11 @@ spec:
             port: 8081
           initialDelaySeconds: 15
           periodSeconds: 20
+          failureThreshold: 3
         readinessProbe:
           httpGet:
             path: /readyz
             port: 8081
           initialDelaySeconds: 5
           periodSeconds: 10
+          failureThreshold: 3

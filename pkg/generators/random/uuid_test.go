@@ -25,7 +25,12 @@ func TestUUIDGenerator_Generate(t *testing.T) {
 	}
 
 	// Validate UUID format
-	parsedUUID, err := uuid.Parse(result["value"])
+	uuidValue := result["value"]
+	if uuidValue == "" {
+		t.Error("Generate() UUID value is empty")
+		return
+	}
+	parsedUUID, err := uuid.Parse(uuidValue)
 	if err != nil {
 		t.Errorf("Generate() invalid UUID format: %v", err)
 		return

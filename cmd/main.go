@@ -54,7 +54,10 @@ func main() {
 	rootCmd.Flags().String("log-format", "json", "Log format: json or console")
 	rootCmd.Flags().String("log-level", "info", "Log level: debug, info, warn, error")
 
-	viper.BindPFlags(rootCmd.Flags())
+	if err := viper.BindPFlags(rootCmd.Flags()); err != nil {
+		setupLog.Error(err, "unable to bind flags")
+		os.Exit(1)
+	}
 
 	if err := rootCmd.Execute(); err != nil {
 		os.Exit(1)
@@ -65,6 +68,17 @@ func run(cmd *cobra.Command, args []string) {
 	logFormat := viper.GetString("log-format")
 	logLevel := viper.GetString("log-level")
 	dryRun := viper.GetBool("dry-run")
+
+	// Validate log format to prevent log injection
+	if logFormat != "json" && logFormat != "console" {
+		logFormat = "json"
+	}
+
+	// Validate log level to prevent log injection
+	validLevels := map[string]bool{"debug": true, "info": true, "warn": true, "error": true}
+	if !validLevels[logLevel] {
+		logLevel = "info"
+	}
 
 	opts := zap.Options{
 		Development: logFormat == "console",

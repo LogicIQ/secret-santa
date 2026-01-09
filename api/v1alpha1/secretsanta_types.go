@@ -18,6 +18,8 @@ type DryRunResult struct {
 
 // MediaConfig defines configuration for secret storage destinations
 type MediaConfig struct {
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:Enum=k8s;aws-secrets-manager;aws-parameter-store;azure-key-vault;gcp-secret-manager
 	Type   string                `json:"type"`
 	Config *runtime.RawExtension `json:"config,omitempty"`
 }
@@ -43,6 +45,7 @@ type SecretSantaSpec struct {
 	// +kubebuilder:validation:MinItems=1
 	Generators  []GeneratorConfig `json:"generators"`
 	Media       *MediaConfig      `json:"media,omitempty"`
+	// SecretName is the name of the Kubernetes secret to create (not the secret value itself)
 	SecretName  string            `json:"secretName,omitempty"`
 	SecretType  string            `json:"secretType,omitempty"`
 	Labels      map[string]string `json:"labels,omitempty"`
