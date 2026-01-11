@@ -10,7 +10,7 @@ spec:
       "database": {
         "username": "admin",
         "password": "{{ .dbpass.value }}",
-        "host": "{{ .dbpass.host | default "localhost" }}"
+        "host": "{{ .dbpass.host | default \"localhost\" }}"
       },
       "api": {
         "key": "{{ .apikey.value }}",
@@ -43,13 +43,13 @@ metadata:
 spec:
   dryRun: true
   template: |
-    database_url: "postgresql://{{ .dbcreds.username }}:{{ .dbcreds.password }}@localhost:5432/myapp"
+    database_url: "postgresql://admin:{{ .dbcreds.password }}@localhost:5432/myapp"
     jwt_secret: "{{ .jwt.value }}"
-    encryption_key: "{{ .encryption.private_key }}"
+    encryption_key: "{{ .encryption.private_key_pem }}"
     tls_cert: |
-{{ .tls.certificate | indent 6 }}
+{{ .tls.private_key_pem | indent 6 }}
     tls_key: |
-{{ .tls.private_key | indent 6 }}
+{{ .tls.private_key_pem | indent 6 }}
   generators:
     - name: dbcreds
       type: random_password

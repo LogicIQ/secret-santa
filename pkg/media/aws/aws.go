@@ -102,11 +102,17 @@ func (m *AWSSecretsManagerMedia) loadAWSConfig() (aws.Config, error) {
 
 // getGeneratorTypes extracts generator types from the configuration
 func (m *AWSSecretsManagerMedia) getGeneratorTypes(generators []secretsantav1alpha1.GeneratorConfig) string {
-	types := make([]string, len(generators))
-	for i, gen := range generators {
-		types[i] = gen.Type
+	if len(generators) == 0 {
+		return ""
 	}
-	return strings.Join(types, ",")
+	var builder strings.Builder
+	for i, gen := range generators {
+		if i > 0 {
+			builder.WriteByte(',')
+		}
+		builder.WriteString(gen.Type)
+	}
+	return builder.String()
 }
 
 // calculateTemplateChecksum creates a SHA256 checksum of the template
@@ -198,11 +204,17 @@ func (m *AWSParameterStoreMedia) loadAWSConfig() (aws.Config, error) {
 
 // getGeneratorTypes extracts generator types from the configuration
 func (m *AWSParameterStoreMedia) getGeneratorTypes(generators []secretsantav1alpha1.GeneratorConfig) string {
-	types := make([]string, len(generators))
-	for i, gen := range generators {
-		types[i] = gen.Type
+	if len(generators) == 0 {
+		return ""
 	}
-	return strings.Join(types, ",")
+	var builder strings.Builder
+	for i, gen := range generators {
+		if i > 0 {
+			builder.WriteByte(',')
+		}
+		builder.WriteString(gen.Type)
+	}
+	return builder.String()
 }
 
 // calculateTemplateChecksum creates a SHA256 checksum of the template

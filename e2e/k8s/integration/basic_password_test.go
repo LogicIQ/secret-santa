@@ -97,5 +97,5 @@ func TestBasicPasswordGeneration(t *testing.T) {
 		t.Errorf("Password not found in secret data")
 	}
 
-	t.Logf("Test passed! Secret data: %s", data)
+	t.Logf("Test passed! Secret created successfully with expected fields")
 }

@@ -47,6 +47,7 @@ type SecretSantaSpec struct {
 	Media       *MediaConfig      `json:"media,omitempty"`
 	// SecretName is the name of the Kubernetes secret to create (not the secret value itself)
 	SecretName  string            `json:"secretName,omitempty"`
+	// SecretType is the Kubernetes secret type (e.g., Opaque, kubernetes.io/tls), not secret data
 	SecretType  string            `json:"secretType,omitempty"`
 	Labels      map[string]string `json:"labels,omitempty"`
 	Annotations map[string]string `json:"annotations,omitempty"`

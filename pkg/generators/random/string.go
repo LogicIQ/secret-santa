@@ -12,6 +12,9 @@ type StringGenerator struct{}
 
 func (g *StringGenerator) Generate(config map[string]interface{}) (map[string]string, error) {
 	length := getIntConfig(config, "length", 16)
+	if length <= 0 {
+		return nil, fmt.Errorf("string length must be positive, got %d", length)
+	}
 	lower := getBoolConfig(config, "lower", true)
 	upper := getBoolConfig(config, "upper", true)
 	numeric := getBoolConfig(config, "numeric", true)

@@ -40,13 +40,13 @@ rules:
   resources:
   - secrets
   verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
+  - create  # Create secrets from generated data
+  - delete  # Clean up secrets when SecretSanta is deleted
+  - get     # Read existing secrets
+  - list    # List secrets for reconciliation
+  - patch   # Update secret metadata
+  - update  # Update secret data
+  - watch   # Watch for secret changes
 - apiGroups:
   - ""
   resources:

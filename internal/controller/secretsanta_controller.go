@@ -332,7 +332,7 @@ func (r *SecretSantaReconciler) generateTemplateData(generatorConfigs []secretsa
 			configMap = make(map[string]interface{})
 		}
 
-		log.V(1).Info("Executing generator", "config", configMap)
+		log.V(1).Info("Executing generator")
 		timer := NewGeneratorTimer(config.Type)
 		result, err := gen.Generate(configMap)
 		timer.ObserveDuration()
@@ -505,6 +505,9 @@ func (r *SecretSantaReconciler) handleDryRun(ctx context.Context, secretSanta *s
 }
 
 func getMapKeys(m map[string]string) []string {
+	if m == nil {
+		return []string{}
+	}
 	keys := make([]string, 0, len(m))
 	for k := range m {
 		keys = append(keys, k)

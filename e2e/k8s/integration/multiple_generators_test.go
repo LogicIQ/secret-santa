@@ -91,14 +91,21 @@ port_hex: {{ .Port.value | toHex }}`,
 	if err != nil {
 		t.Fatalf("Failed to create SecretSanta: %v", err)
 	}
-	defer dynClient.Resource(secretSantaGVR).Namespace(namespace).Delete(context.TODO(), name, metav1.DeleteOptions{})
+	defer func() {
+		if err := dynClient.Resource(secretSantaGVR).Namespace(namespace).Delete(context.TODO(), name, metav1.DeleteOptions{}); err != nil {
+			t.Logf("Failed to delete SecretSanta: %v", err)
+		}
+	}()
 
 	err = wait.PollImmediate(2*time.Second, 60*time.Second, func() (bool, error) {
 		_, err := client.CoreV1().Secrets(namespace).Get(context.TODO(), name, metav1.GetOptions{})
-		return err == nil, nil
+		if err != nil {
+			return false, nil // Continue polling
+		}
+		return true, nil // Secret found
 	})
 	if err != nil {
-		t.Fatalf("Secret was not created: %v", err)
+		t.Fatalf("Timeout waiting for secret to be created: %v", err)
 	}
 
 	secret, err := client.CoreV1().Secrets(namespace).Get(context.TODO(), name, metav1.GetOptions{})

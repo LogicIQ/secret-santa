@@ -45,9 +45,10 @@ func (g *PasswordGenerator) Generate(config map[string]interface{}) (map[string]
 		return nil, fmt.Errorf("no character types enabled")
 	}
 
+	charsetLen := big.NewInt(int64(len(charsetStr)))
 	password := make([]byte, length)
 	for i := range password {
-		n, err := rand.Int(rand.Reader, big.NewInt(int64(len(charsetStr))))
+		n, err := rand.Int(rand.Reader, charsetLen)
 		if err != nil {
 			return nil, err
 		}
