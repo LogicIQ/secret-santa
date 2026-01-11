@@ -18,9 +18,11 @@ type DryRunResult struct {
 
 // MediaConfig defines configuration for secret storage destinations
 type MediaConfig struct {
+	// Type specifies the storage backend (k8s, aws-secrets-manager, aws-parameter-store, azure-key-vault, gcp-secret-manager)
 	// +kubebuilder:validation:MinLength=1
 	// +kubebuilder:validation:Enum=k8s;aws-secrets-manager;aws-parameter-store;azure-key-vault;gcp-secret-manager
 	Type   string                `json:"type"`
+	// Config contains storage backend specific configuration parameters
 	Config *runtime.RawExtension `json:"config,omitempty"`
 }
 
@@ -28,11 +30,13 @@ type MediaConfig struct {
 
 // GeneratorConfig defines configuration for secret generators
 type GeneratorConfig struct {
+	// Name is the unique identifier for this generator within the template
 	// +kubebuilder:validation:MinLength=1
 	Name   string                `json:"name"`
+	// Type specifies the generator type (e.g., random_password, tls_private_key)
 	// +kubebuilder:validation:MinLength=1
 	Type   string                `json:"type"`
-	// Configuration for the generator. Validation is performed by the controller.
+	// Config contains generator-specific configuration parameters
 	Config *runtime.RawExtension `json:"config,omitempty"`
 }
 
@@ -40,24 +44,34 @@ type GeneratorConfig struct {
 
 // SecretSantaSpec defines the desired state of SecretSanta
 type SecretSantaSpec struct {
+	// Template is the Go template string for generating secret data
 	// +kubebuilder:validation:MinLength=1
 	Template    string            `json:"template"`
+	// Generators define the secret value generators used in the template
 	// +kubebuilder:validation:MinItems=1
 	Generators  []GeneratorConfig `json:"generators"`
+	// Media specifies where to store the generated secret (defaults to Kubernetes)
 	Media       *MediaConfig      `json:"media,omitempty"`
-	// SecretName is the name of the Kubernetes secret to create (not the secret value itself)
+	// SecretName overrides the default secret name (defaults to CR name)
 	SecretName  string            `json:"secretName,omitempty"`
-	// SecretType is the Kubernetes secret type (e.g., Opaque, kubernetes.io/tls), not secret data
+	// SecretType sets the Kubernetes secret type (e.g., Opaque, kubernetes.io/tls)
 	SecretType  string            `json:"secretType,omitempty"`
+	// Labels to apply to the generated secret
 	Labels      map[string]string `json:"labels,omitempty"`
+	// Annotations to apply to the generated secret
 	Annotations map[string]string `json:"annotations,omitempty"`
+	// DryRun enables validation mode without creating actual secrets
+	// +kubebuilder:default=false
 	DryRun      bool              `json:"dryRun,omitempty"`
 }
 
 // SecretSantaStatus defines the observed state of SecretSanta
 type SecretSantaStatus struct {
+	// LastGenerated timestamp of the last successful secret generation
 	LastGenerated *metav1.Time       `json:"lastGenerated,omitempty"`
+	// Conditions represent the current state of the SecretSanta resource
 	Conditions    []metav1.Condition `json:"conditions,omitempty"`
+	// DryRunResult contains the masked output from dry-run executions
 	DryRunResult  *DryRunResult      `json:"dryRunResult,omitempty"`
 }
 

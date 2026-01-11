@@ -505,12 +505,14 @@ func (r *SecretSantaReconciler) handleDryRun(ctx context.Context, secretSanta *s
 }
 
 func getMapKeys(m map[string]string) []string {
-	if m == nil {
+	if m == nil || len(m) == 0 {
 		return []string{}
 	}
 	keys := make([]string, 0, len(m))
 	for k := range m {
-		keys = append(keys, k)
+		if k != "" {
+			keys = append(keys, k)
+		}
 	}
 	return keys
 }
