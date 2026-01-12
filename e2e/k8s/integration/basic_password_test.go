@@ -77,7 +77,11 @@ func TestBasicPasswordGeneration(t *testing.T) {
 
 	err = wait.PollImmediate(2*time.Second, 60*time.Second, func() (bool, error) {
 		_, err := client.CoreV1().Secrets(namespace).Get(context.TODO(), name, metav1.GetOptions{})
-		return err == nil, nil
+		if err != nil {
+			t.Logf("Waiting for secret to be created: %v", err)
+			return false, nil
+		}
+		return true, nil
 	})
 	if err != nil {
 		t.Fatalf("Secret was not created: %v", err)
@@ -92,8 +96,12 @@ func TestBasicPasswordGeneration(t *testing.T) {
 		t.Errorf("Expected secret type Opaque, got %s", secret.Type)
 	}
 
-	data := string(secret.Data["data"])
-	if !strings.Contains(data, "password:") {
+	data, exists := secret.Data["data"]
+	if !exists {
+		t.Fatalf("Secret data key 'data' not found")
+	}
+	dataStr := string(data)
+	if !strings.Contains(dataStr, "password:") {
 		t.Errorf("Password not found in secret data")
 	}
 

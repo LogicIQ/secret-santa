@@ -15,6 +15,9 @@ func (g *StringGenerator) Generate(config map[string]interface{}) (map[string]st
 	if length <= 0 {
 		return nil, fmt.Errorf("string length must be positive, got %d", length)
 	}
+	if length > 10000 {
+		return nil, fmt.Errorf("string length too large, maximum 10000, got %d", length)
+	}
 	lower := getBoolConfig(config, "lower", true)
 	upper := getBoolConfig(config, "upper", true)
 	numeric := getBoolConfig(config, "numeric", true)
@@ -49,7 +52,7 @@ func (g *StringGenerator) Generate(config map[string]interface{}) (map[string]st
 	for i := range result {
 		n, err := rand.Int(rand.Reader, big.NewInt(int64(len(charsetStr))))
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to generate random character: %w", err)
 		}
 		result[i] = charsetStr[n.Int64()]
 	}

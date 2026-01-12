@@ -6,6 +6,13 @@ import (
 	"crypto/rsa"
 )
 
+const (
+	KeyAlgorithmRSA     = "RSA"
+	KeyAlgorithmECDSA   = "ECDSA"
+	KeyAlgorithmED25519 = "ED25519"
+	KeyAlgorithmUnknown = "UNKNOWN"
+)
+
 func getStringConfig(config map[string]interface{}, key, defaultValue string) string {
 	if val, ok := config[key].(string); ok {
 		return val
@@ -36,12 +43,12 @@ func getStringSliceConfig(config map[string]interface{}, key string) []string {
 func getKeyAlgorithm(privateKey interface{}) string {
 	switch privateKey.(type) {
 	case *rsa.PrivateKey:
-		return "RSA"
+		return KeyAlgorithmRSA
 	case *ecdsa.PrivateKey:
-		return "ECDSA"
+		return KeyAlgorithmECDSA
 	case ed25519.PrivateKey:
-		return "ED25519"
+		return KeyAlgorithmED25519
 	default:
-		return "UNKNOWN"
+		return KeyAlgorithmUnknown
 	}
 }

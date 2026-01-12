@@ -23,7 +23,7 @@ spec:
       containers:
       - name: manager
         image: secret-santa:latest
-        imagePullPolicy: Never
+        imagePullPolicy: IfNotPresent
         securityContext:
           allowPrivilegeEscalation: false
           runAsNonRoot: true

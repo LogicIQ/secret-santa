@@ -13,6 +13,14 @@ type RSAKeyGenerator struct{}
 
 func (g *RSAKeyGenerator) Generate(config map[string]interface{}) (map[string]string, error) {
 	keySize := getIntConfig(config, "key_size", 2048)
+	
+	// Validate key size
+	if keySize < 1024 {
+		return nil, fmt.Errorf("RSA key size too small, minimum 1024 bits, got: %d", keySize)
+	}
+	if keySize > 8192 {
+		return nil, fmt.Errorf("RSA key size too large, maximum 8192 bits, got: %d", keySize)
+	}
 
 	// Generate RSA key pair
 	privateKey, err := rsa.GenerateKey(rand.Reader, keySize)

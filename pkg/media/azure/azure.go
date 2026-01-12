@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"fmt"
+	"regexp"
 	"strings"
 	"time"
 
@@ -40,8 +41,15 @@ func (m *AzureKeyVaultMedia) Store(ctx context.Context, secretSanta *secretsanta
 	}
 
 	// Azure Key Vault secret names must match ^[0-9a-zA-Z-]+$
+	if secretName == "" {
+		return fmt.Errorf("secret name cannot be empty")
+	}
 	secretName = strings.ReplaceAll(secretName, "_", "-")
 	secretName = strings.ReplaceAll(secretName, ".", "-")
+	// Validate final secret name format
+	if !isValidAzureSecretName(secretName) {
+		return fmt.Errorf("invalid Azure Key Vault secret name after sanitization: %s", secretName)
+	}
 
 	// Build tags from labels, annotations, and metadata
 	tags := make(map[string]*string)
@@ -73,7 +81,10 @@ func (m *AzureKeyVaultMedia) Store(ctx context.Context, secretSanta *secretsanta
 	}
 
 	_, err = client.SetSecret(ctx, secretName, params, nil)
-	return err
+	if err != nil {
+		return fmt.Errorf("failed to set secret %s in Azure Key Vault: %w", secretName, err)
+	}
+	return nil
 }
 
 func (m *AzureKeyVaultMedia) GetType() string {
@@ -93,4 +104,10 @@ func (m *AzureKeyVaultMedia) getGeneratorTypes(generators []secretsantav1alpha1.
 func (m *AzureKeyVaultMedia) calculateTemplateChecksum(template string) string {
 	hash := sha256.Sum256([]byte(template))
 	return fmt.Sprintf("%x", hash)[:16] // Use first 16 chars for brevity
+}
+
+// isValidAzureSecretName validates Azure Key Vault secret name format
+func isValidAzureSecretName(name string) bool {
+	matched, _ := regexp.MatchString(`^[0-9a-zA-Z-]+$`, name)
+	return matched && len(name) > 0
 }

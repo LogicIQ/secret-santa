@@ -46,6 +46,7 @@ func TestIntegerGenerator_Generate(t *testing.T) {
 			val, err := strconv.Atoi(result["value"])
 			if err != nil {
 				t.Errorf("Generate() invalid integer: %v", err)
+				return
 			}
 
 			if val < tt.min || val > tt.max {

@@ -10,7 +10,7 @@ spec:
       "database": {
         "username": "admin",
         "password": "{{ .dbpass.value }}",
-        "host": "{{ .dbpass.host | default \"localhost\" }}"
+        "host": "localhost"
       },
       "api": {
         "key": "{{ .apikey.value }}",
@@ -23,6 +23,11 @@ spec:
       config:
         length: 32
         include_symbols: true
+    - name: dbhost
+      type: random_string
+      config:
+        length: 16
+        charset: "alphanumeric"
     - name: apikey
       type: random_string
       config:
@@ -81,8 +86,8 @@ spec:
   dryRun: true
   template: |
     {
-      "password": "{{ .invalid_generator.value }}",
-      "malformed": "{{ .missing_closing_brace"
+      "password": "{{ .valid_gen.value }}",
+      "malformed": "{{ .missing_closing_brace }}"
     }
   generators:
     - name: valid_gen

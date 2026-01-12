@@ -40,9 +40,13 @@ func TestSelfSignedCertGenerator_Generate(t *testing.T) {
 			}
 
 			// Validate PEM format
-			block, _ := pem.Decode([]byte(result["cert_pem"]))
+			block, rest := pem.Decode([]byte(result["cert_pem"]))
 			if block == nil {
 				t.Error("Generate() invalid certificate PEM")
+				return
+			}
+			if len(rest) > 0 {
+				t.Error("Generate() certificate PEM contains extra data")
 			}
 			if block.Type != "CERTIFICATE" {
 				t.Errorf("Generate() wrong PEM type = %s, want CERTIFICATE", block.Type)

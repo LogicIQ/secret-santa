@@ -74,7 +74,15 @@ func (m *K8sSecretsMedia) Store(ctx context.Context, secretSanta *secretsantav1a
 		StringData: stringData,
 	}
 
-	return m.Client.Create(ctx, secret)
+	err := m.Client.Create(ctx, secret)
+	if err != nil {
+		// Check if secret already exists
+		if client.IgnoreAlreadyExists(err) == nil {
+			return nil // Secret already exists, which is fine for create-once policy
+		}
+		return fmt.Errorf("failed to create secret %s/%s: %w", secretSanta.Namespace, secretName, err)
+	}
+	return nil
 }
 
 func (m *K8sSecretsMedia) GetType() string {

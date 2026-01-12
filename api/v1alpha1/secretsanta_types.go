@@ -55,6 +55,7 @@ type SecretSantaSpec struct {
 	// SecretName overrides the default secret name (defaults to CR name)
 	SecretName  string            `json:"secretName,omitempty"`
 	// SecretType sets the Kubernetes secret type (e.g., Opaque, kubernetes.io/tls)
+	// +kubebuilder:validation:Enum=Opaque;kubernetes.io/tls;kubernetes.io/dockerconfigjson;kubernetes.io/basic-auth;kubernetes.io/ssh-auth;kubernetes.io/service-account-token
 	SecretType  string            `json:"secretType,omitempty"`
 	// Labels to apply to the generated secret
 	Labels      map[string]string `json:"labels,omitempty"`

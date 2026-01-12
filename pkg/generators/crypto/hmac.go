@@ -22,11 +22,14 @@ func (g *HMACGenerator) Generate(config map[string]interface{}) (map[string]stri
 	if keySize <= 0 {
 		return nil, fmt.Errorf("key_size must be positive, got: %d", keySize)
 	}
+	if keySize > 1024 {
+		return nil, fmt.Errorf("key_size too large, maximum 1024 bytes, got: %d", keySize)
+	}
 
 	// Generate random key if not provided
 	key := make([]byte, keySize)
 	if _, err := rand.Read(key); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to generate random key: %w", err)
 	}
 
 	// Select hash function

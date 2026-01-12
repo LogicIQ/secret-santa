@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"text/template"
 	"time"
 
@@ -313,7 +314,7 @@ func (r *SecretSantaReconciler) generateTemplateData(generatorConfigs []secretsa
 			return nil, fmt.Errorf("invalid generator config %s: %w", config.Name, err)
 		}
 
-		log := ctrl.Log.WithName("generator").WithValues("name", config.Name, "type", config.Type)
+		log := ctrl.Log.WithName("generator").WithValues("name", sanitizeLogValue(config.Name), "type", sanitizeLogValue(config.Type))
 		
 		// Get generator from registry
 		gen, err := generators.Get(config.Type)
@@ -324,6 +325,9 @@ func (r *SecretSantaReconciler) generateTemplateData(generatorConfigs []secretsa
 		// Convert RawExtension to map[string]interface{}
 		var configMap map[string]interface{}
 		if config.Config != nil && len(config.Config.Raw) > 0 {
+			if len(config.Config.Raw) > 1024*1024 { // 1MB limit
+				return nil, fmt.Errorf("config for generator %s is too large (>1MB)", config.Name)
+			}
 			if err := json.Unmarshal(config.Config.Raw, &configMap); err != nil {
 				return nil, fmt.Errorf("failed to unmarshal config for generator %s: %w", config.Name, err)
 			}
@@ -359,8 +363,15 @@ func (r *SecretSantaReconciler) validateTemplate(tmplStr string) error {
 }
 
 func (r *SecretSantaReconciler) shouldProcess(secretSanta *secretsantav1alpha1.SecretSanta) bool {
+	if secretSanta == nil {
+		return false
+	}
+	
 	// Include annotations: ALL must be present (AND logic)
 	for _, include := range r.IncludeAnnotations {
+		if secretSanta.Annotations == nil {
+			return false
+		}
 		if _, exists := secretSanta.Annotations[include]; !exists {
 			return false
 		}
@@ -368,13 +379,18 @@ func (r *SecretSantaReconciler) shouldProcess(secretSanta *secretsantav1alpha1.S
 
 	// Exclude annotations: ANY present means skip (OR logic)
 	for _, exclude := range r.ExcludeAnnotations {
-		if _, exists := secretSanta.Annotations[exclude]; exists {
-			return false
+		if secretSanta.Annotations != nil {
+			if _, exists := secretSanta.Annotations[exclude]; exists {
+				return false
+			}
 		}
 	}
 
 	// Include labels: ALL must be present (AND logic)
 	for _, include := range r.IncludeLabels {
+		if secretSanta.Labels == nil {
+			return false
+		}
 		if _, exists := secretSanta.Labels[include]; !exists {
 			return false
 		}
@@ -382,8 +398,10 @@ func (r *SecretSantaReconciler) shouldProcess(secretSanta *secretsantav1alpha1.S
 
 	// Exclude labels: ANY present means skip (OR logic)
 	for _, exclude := range r.ExcludeLabels {
-		if _, exists := secretSanta.Labels[exclude]; exists {
-			return false
+		if secretSanta.Labels != nil {
+			if _, exists := secretSanta.Labels[exclude]; exists {
+				return false
+			}
 		}
 	}
 
@@ -497,7 +515,7 @@ func (r *SecretSantaReconciler) handleDryRun(ctx context.Context, secretSanta *s
 
 	if err := r.updateStatus(ctx, secretSanta, "DryRunComplete", "True", "Dry-run completed successfully with masked output"); err != nil {
 		log.Error(err, "Failed to update dry-run status")
-		return ctrl.Result{}, err
+		// Don't return error - dry-run was successful even if status update failed
 	}
 
 	log.Info("Dry-run completed successfully", "generatorsUsed", len(generatorsUsed))
@@ -521,4 +539,10 @@ func (r *SecretSantaReconciler) SetupWithManager(mgr ctrl.Manager, maxConcurrent
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&secretsantav1alpha1.SecretSanta{}).
 		Complete(r)
+}
+
+// sanitizeLogValue removes potentially dangerous characters from log values to prevent log injection
+func sanitizeLogValue(value string) string {
+	// Remove newlines, carriage returns, and other control characters that could be used for log injection
+	return strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(value, "\n", ""), "\r", ""), "\t", "")
 }

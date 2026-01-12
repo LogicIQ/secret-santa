@@ -18,9 +18,12 @@ func (g *LocallySignedCertGenerator) Generate(config map[string]interface{}) (ma
 		return nil, fmt.Errorf("cert_request_pem is required")
 	}
 
-	csrBlock, _ := pem.Decode([]byte(csrPEM))
+	csrBlock, rest := pem.Decode([]byte(csrPEM))
 	if csrBlock == nil {
 		return nil, fmt.Errorf("failed to decode CSR PEM")
+	}
+	if len(rest) > 0 {
+		return nil, fmt.Errorf("CSR PEM contains extra data")
 	}
 
 	csr, err := x509.ParseCertificateRequest(csrBlock.Bytes)
@@ -34,9 +37,12 @@ func (g *LocallySignedCertGenerator) Generate(config map[string]interface{}) (ma
 		return nil, fmt.Errorf("ca_private_key_pem is required")
 	}
 
-	caKeyBlock, _ := pem.Decode([]byte(caPrivateKeyPEM))
+	caKeyBlock, rest := pem.Decode([]byte(caPrivateKeyPEM))
 	if caKeyBlock == nil {
 		return nil, fmt.Errorf("failed to decode CA private key PEM")
+	}
+	if len(rest) > 0 {
+		return nil, fmt.Errorf("CA private key PEM contains extra data")
 	}
 
 	caPrivateKey, err := x509.ParsePKCS8PrivateKey(caKeyBlock.Bytes)
@@ -50,9 +56,12 @@ func (g *LocallySignedCertGenerator) Generate(config map[string]interface{}) (ma
 		return nil, fmt.Errorf("ca_cert_pem is required")
 	}
 
-	caCertBlock, _ := pem.Decode([]byte(caCertPEM))
+	caCertBlock, rest := pem.Decode([]byte(caCertPEM))
 	if caCertBlock == nil {
 		return nil, fmt.Errorf("failed to decode CA certificate PEM")
+	}
+	if len(rest) > 0 {
+		return nil, fmt.Errorf("CA certificate PEM contains extra data")
 	}
 
 	caCert, err := x509.ParseCertificate(caCertBlock.Bytes)
@@ -78,7 +87,7 @@ func (g *LocallySignedCertGenerator) Generate(config map[string]interface{}) (ma
 	// Sign certificate
 	certDER, err := x509.CreateCertificate(rand.Reader, &template, caCert, csr.PublicKey, caPrivateKey)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create certificate: %w", err)
 	}
 
 	// Encode certificate

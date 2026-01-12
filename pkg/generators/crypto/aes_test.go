@@ -58,6 +58,7 @@ func TestAESKeyGenerator_Generate(t *testing.T) {
 			decoded, err := base64.StdEncoding.DecodeString(result["key_base64"])
 			if err != nil {
 				t.Errorf("Generate() invalid base64: %v", err)
+				return
 			}
 			if len(decoded) != tt.bytes {
 				t.Errorf("Generate() key length = %d, want %d", len(decoded), tt.bytes)
@@ -67,6 +68,7 @@ func TestAESKeyGenerator_Generate(t *testing.T) {
 			hexDecoded, err := hex.DecodeString(result["key_hex"])
 			if err != nil {
 				t.Errorf("Generate() invalid hex: %v", err)
+				return
 			}
 			if len(hexDecoded) != tt.bytes {
 				t.Errorf("Generate() hex key length = %d, want %d", len(hexDecoded), tt.bytes)

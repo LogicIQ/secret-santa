@@ -43,6 +43,7 @@ func TestStaticGenerator_Generate(t *testing.T) {
 			_, err = time.Parse(time.RFC3339, result["rfc3339"])
 			if err != nil {
 				t.Errorf("Generate() invalid RFC3339 format: %v", err)
+				return
 			}
 		})
 	}

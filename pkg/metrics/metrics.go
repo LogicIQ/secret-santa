@@ -12,6 +12,7 @@ const (
 	ControllerSubsystem       = "controller"
 	GeneratorSubsystem        = "generator"
 	KubernetesClientSubsystem = "kubernetes_client"
+	SecretSantaSubsystem      = "secretsanta"
 )
 
 var (
@@ -162,9 +163,15 @@ func RecordGeneratorExecution(generatorType, status string) {
 	GeneratorExecutionsTotal.WithLabelValues(generatorType, status).Inc()
 }
 
+const (
+	StatusSuccess = "success"
+	StatusFailed  = "failed"
+	StatusFailure = "failure"
+)
+
 func RecordKubernetesClientRequest(operation, status string) {
 	KubernetesClientRequestsTotal.WithLabelValues(operation, status).Inc()
-	if status == "failed" {
+	if status == StatusFailed {
 		KubernetesClientFailTotal.WithLabelValues(operation).Inc()
 	}
 }
@@ -183,11 +190,11 @@ func UpdateLastReconciliationTime() {
 
 func UpdateReconciliationStatus(success bool) {
 	if success {
-		ReconciliationStatus.WithLabelValues("success").Set(1)
-		ReconciliationStatus.WithLabelValues("failure").Set(0)
+		ReconciliationStatus.WithLabelValues(StatusSuccess).Set(1)
+		ReconciliationStatus.WithLabelValues(StatusFailure).Set(0)
 	} else {
-		ReconciliationStatus.WithLabelValues("success").Set(0)
-		ReconciliationStatus.WithLabelValues("failure").Set(1)
+		ReconciliationStatus.WithLabelValues(StatusSuccess).Set(0)
+		ReconciliationStatus.WithLabelValues(StatusFailure).Set(1)
 	}
 }
 
@@ -227,31 +234,31 @@ func UpdateSecretInstances(name, namespace string, count float64) {
 
 var (
 	SyncCallCount = prometheus.NewCounterVec(prometheus.CounterOpts{
-		Subsystem: "secretsanta",
+		Subsystem: SecretSantaSubsystem,
 		Name:      "controller_sync_call_count",
 		Help:      "The number of reconciliation loops made by a controller",
 	}, []string{"secretsanta_name", "secretsanta_namespace"})
 
 	SyncErrorCount = prometheus.NewCounterVec(prometheus.CounterOpts{
-		Subsystem: "secretsanta",
+		Subsystem: SecretSantaSubsystem,
 		Name:      "controller_sync_error_count",
 		Help:      "The number of failed reconciliation loops",
 	}, []string{"secretsanta_name", "secretsanta_namespace"})
 
 	LastReconcileDuration = prometheus.NewGaugeVec(prometheus.GaugeOpts{
-		Subsystem: "secretsanta",
+		Subsystem: SecretSantaSubsystem,
 		Name:      "controller_last_reconcile_duration_seconds",
 		Help:      "Duration of the last reconcile operation",
 	}, []string{"secretsanta_name", "secretsanta_namespace"})
 
 	ReconcileActive = prometheus.NewGaugeVec(prometheus.GaugeOpts{
-		Subsystem: "secretsanta",
+		Subsystem: SecretSantaSubsystem,
 		Name:      "controller_reconcile_active",
 		Help:      "Shows if Reconcile loop is running",
 	}, []string{"secretsanta_name", "secretsanta_namespace"})
 
 	SecretInstances = prometheus.NewGaugeVec(prometheus.GaugeOpts{
-		Subsystem: "secretsanta",
+		Subsystem: SecretSantaSubsystem,
 		Name:      "controller_secrets_instances",
 		Help:      "The number of desired secret instances",
 	}, []string{"secretsanta_name", "secretsanta_namespace"})
