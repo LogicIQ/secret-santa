@@ -3,6 +3,7 @@ package k8s
 import (
 	"context"
 	"crypto/sha256"
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -32,13 +33,28 @@ func (m *K8sSecretsMedia) Store(ctx context.Context, secretSanta *secretsantav1a
 	// Handle TLS secrets specially
 	stringData := map[string]string{}
 	if secretSanta.Spec.SecretType == "kubernetes.io/tls" {
-		// For TLS secrets, parse the template output to extract tls.crt and tls.key
-		lines := strings.Split(data, "\n")
-		for _, line := range lines {
-			if strings.HasPrefix(line, "tls.crt:") {
-				stringData["tls.crt"] = strings.TrimSpace(strings.TrimPrefix(line, "tls.crt:"))
-			} else if strings.HasPrefix(line, "tls.key:") {
-				stringData["tls.key"] = strings.TrimSpace(strings.TrimPrefix(line, "tls.key:"))
+		// Try to parse as JSON first
+		var jsonData map[string]string
+		if err := json.Unmarshal([]byte(data), &jsonData); err == nil {
+			if cert, ok := jsonData["tls.crt"]; ok && cert != "" {
+				stringData["tls.crt"] = cert
+			}
+			if key, ok := jsonData["tls.key"]; ok && key != "" {
+				stringData["tls.key"] = key
+			}
+		} else {
+			// Fallback to line-by-line parsing
+			lines := strings.Split(data, "\n")
+			for _, line := range lines {
+				line = strings.TrimSpace(line)
+				if line == "" {
+					continue
+				}
+				if strings.HasPrefix(line, "tls.crt:") {
+					stringData["tls.crt"] = strings.TrimSpace(strings.TrimPrefix(line, "tls.crt:"))
+				} else if strings.HasPrefix(line, "tls.key:") {
+					stringData["tls.key"] = strings.TrimSpace(strings.TrimPrefix(line, "tls.key:"))
+				}
 			}
 		}
 		// If we don't have the required fields, fall back to data field

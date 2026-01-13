@@ -18,9 +18,8 @@ type DryRunResult struct {
 
 // MediaConfig defines configuration for secret storage destinations
 type MediaConfig struct {
-	// Type specifies the storage backend (k8s, aws-secrets-manager, aws-parameter-store, azure-key-vault, gcp-secret-manager)
+	// Type specifies the storage backend
 	// +kubebuilder:validation:MinLength=1
-	// +kubebuilder:validation:Enum=k8s;aws-secrets-manager;aws-parameter-store;azure-key-vault;gcp-secret-manager
 	Type   string                `json:"type"`
 	// Config contains storage backend specific configuration parameters
 	Config *runtime.RawExtension `json:"config,omitempty"`
@@ -54,8 +53,8 @@ type SecretSantaSpec struct {
 	Media       *MediaConfig      `json:"media,omitempty"`
 	// SecretName overrides the default secret name (defaults to CR name)
 	SecretName  string            `json:"secretName,omitempty"`
-	// SecretType sets the Kubernetes secret type (e.g., Opaque, kubernetes.io/tls)
-	// +kubebuilder:validation:Enum=Opaque;kubernetes.io/tls;kubernetes.io/dockerconfigjson;kubernetes.io/basic-auth;kubernetes.io/ssh-auth;kubernetes.io/service-account-token
+	// SecretType sets the Kubernetes secret type
+	// +kubebuilder:default="Opaque"
 	SecretType  string            `json:"secretType,omitempty"`
 	// Labels to apply to the generated secret
 	Labels      map[string]string `json:"labels,omitempty"`

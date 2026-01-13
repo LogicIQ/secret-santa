@@ -15,6 +15,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
@@ -184,20 +185,20 @@ func (r *SecretSantaReconciler) storeSecret(ctx context.Context, secretSanta *se
 
 	// Store the secret using the media
 	if err := mediaInstance.Store(ctx, secretSanta, data, r.EnableMetadata); err != nil {
-		log.Error(err, "Failed to store secret", "mediaType", mediaInstance.GetType())
+		log.Error(err, "Failed to store secret", "mediaType", sanitizeLogValue(mediaInstance.GetType()))
 		if updateErr := r.updateStatus(ctx, secretSanta, "SecretStorageFailed", "False", err.Error()); updateErr != nil {
 			log.Error(updateErr, "Failed to update status")
 		}
 		return ctrl.Result{}, err
 	}
 
-	RecordSecretGenerated(secretSanta.Name, secretSanta.Namespace, mediaInstance.GetType())
+	RecordSecretGenerated(secretSanta.Name, secretSanta.Namespace, sanitizeLogValue(mediaInstance.GetType()))
 	UpdateSecretInstances(secretSanta.Name, secretSanta.Namespace, 1)
 	if updateErr := r.updateStatus(ctx, secretSanta, "Ready", "True", "Secret stored successfully"); updateErr != nil {
 		log.Error(updateErr, "Failed to update status")
 	}
 
-	log.Info("Secret stored successfully", "mediaType", mediaInstance.GetType())
+	log.Info("Secret stored successfully", "mediaType", sanitizeLogValue(mediaInstance.GetType()))
 	return ctrl.Result{}, nil
 }
 
@@ -448,7 +449,10 @@ func (r *SecretSantaReconciler) updateStatus(ctx context.Context, secretSanta *s
 		// Resource was deleted, ignore the error
 		return nil
 	}
-	return err
+	if err != nil {
+		return fmt.Errorf("failed to update status for condition %s: %w", conditionType, err)
+	}
+	return nil
 }
 
 func (r *SecretSantaReconciler) handleDryRun(ctx context.Context, secretSanta *secretsantav1alpha1.SecretSanta) (ctrl.Result, error) {
@@ -536,8 +540,15 @@ func getMapKeys(m map[string]string) []string {
 }
 
 func (r *SecretSantaReconciler) SetupWithManager(mgr ctrl.Manager, maxConcurrentReconciles int) error {
+	if mgr == nil {
+		return fmt.Errorf("manager cannot be nil")
+	}
+	if maxConcurrentReconciles <= 0 {
+		return fmt.Errorf("maxConcurrentReconciles must be greater than 0, got %d", maxConcurrentReconciles)
+	}
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&secretsantav1alpha1.SecretSanta{}).
+		WithOptions(controller.Options{MaxConcurrentReconciles: maxConcurrentReconciles}).
 		Complete(r)
 }
 

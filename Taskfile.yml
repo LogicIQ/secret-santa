@@ -47,6 +47,12 @@ tasks:
     cmds:
       - docker build -t secret-santa:latest .
 
+  docker:push:
+    desc: Build and push Docker image
+    cmds:
+      - docker build -t logiciq/secret-santa:latest .
+      - docker push logiciq/secret-santa:latest
+
   e2e:run:
     desc: Run complete e2e test suite
     cmds:

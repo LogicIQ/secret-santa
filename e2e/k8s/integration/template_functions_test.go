@@ -72,7 +72,10 @@ sha256: {{ .Password.value | sha256 }}`,
 
 	err = wait.PollImmediate(2*time.Second, 60*time.Second, func() (bool, error) {
 		_, err := client.CoreV1().Secrets(namespace).Get(context.TODO(), name, metav1.GetOptions{})
-		return err == nil, nil
+		if err != nil {
+			return false, nil // Continue polling on error
+		}
+		return true, nil
 	})
 	if err != nil {
 		t.Fatalf("Secret was not created: %v", err)
