@@ -19,6 +19,18 @@ func (g *HMACGenerator) Generate(config map[string]interface{}) (map[string]stri
 	keySize := getIntConfig(config, "key_size", 32)
 	message := getStringConfig(config, "message", "")
 
+	// Validate and sanitize algorithm early to prevent log injection
+	if algorithm == "" {
+		return nil, fmt.Errorf("algorithm cannot be empty")
+	}
+	// Sanitize algorithm to prevent log injection
+	algorithm = strings.Map(func(r rune) rune {
+		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') {
+			return r
+		}
+		return -1
+	}, algorithm)
+
 	if keySize <= 0 {
 		return nil, fmt.Errorf("key_size must be positive, got: %d", keySize)
 	}

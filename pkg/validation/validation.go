@@ -1,8 +1,8 @@
 package validation
 
 import (
-	"fmt"
 	"encoding/json"
+	"fmt"
 	"regexp"
 	"strings"
 	"text/template"
@@ -47,7 +47,7 @@ func ValidateTemplate(tmplStr string) error {
 	delete(safeFuncs, "call")
 	delete(safeFuncs, "js")
 	delete(safeFuncs, "urlquery")
-	
+
 	tmpl := template.New("validation").Option("missingkey=error").Funcs(safeFuncs)
 	_, err := tmpl.Parse(tmplStr)
 	if err != nil {
@@ -65,7 +65,7 @@ func ValidateGeneratorConfigs(configs []secretsantav1alpha1.GeneratorConfig) err
 		if config.Type == "" {
 			return fmt.Errorf("generator type cannot be empty for generator '%s'", config.Name)
 		}
-		
+
 		if !generators.IsSupported(config.Type) {
 			return fmt.Errorf("unsupported generator type '%s' for generator '%s'", config.Type, config.Name)
 		}
@@ -78,11 +78,11 @@ func MaskSensitiveData(data string) string {
 	if strings.HasPrefix(strings.TrimSpace(data), "{") {
 		return maskJSONData(data)
 	}
-	
+
 	if strings.Contains(data, ":") && !strings.Contains(data, "{") {
 		return maskYAMLData(data)
 	}
-	
+
 	return maskGenericData(data)
 }
 
@@ -91,13 +91,13 @@ func maskJSONData(data string) string {
 	if err := json.Unmarshal([]byte(data), &obj); err != nil {
 		return maskGenericData(data)
 	}
-	
+
 	masked := maskMapValues(obj)
 	result, err := json.MarshalIndent(masked, "", "  ")
 	if err != nil {
 		return maskGenericData(data)
 	}
-	
+
 	return string(result)
 }
 
@@ -121,7 +121,7 @@ func maskGenericData(data string) string {
 		`"([^"]{8,})"`,
 		`'([^']{8,})'`,
 	}
-	
+
 	result := data
 	for _, pattern := range patterns {
 		re := regexp.MustCompile(pattern)
@@ -139,7 +139,7 @@ func maskGenericData(data string) string {
 			return "<MASKED>"
 		})
 	}
-	
+
 	return result
 }
 
@@ -184,4 +184,3 @@ func maskSliceValues(slice []interface{}) []interface{} {
 	}
 	return result
 }
-

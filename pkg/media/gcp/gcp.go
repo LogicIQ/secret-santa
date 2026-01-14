@@ -23,7 +23,7 @@ type GCPSecretManagerMedia struct {
 
 func (m *GCPSecretManagerMedia) Store(ctx context.Context, secretSanta *secretsantav1alpha1.SecretSanta, data string, enableMetadata bool) error {
 	var opts []option.ClientOption
-	
+
 	// Use credentials file if provided, otherwise rely on workload identity/default credentials
 	if m.CredentialsFile != "" {
 		opts = append(opts, option.WithCredentialsFile(m.CredentialsFile))
@@ -68,7 +68,7 @@ func (m *GCPSecretManagerMedia) Store(ctx context.Context, secretSanta *secretsa
 	for k, v := range secretSanta.Spec.Annotations {
 		labels[k] = v
 	}
-	
+
 	// Add metadata labels only if enabled
 	if enableMetadata {
 		labels["secrets_secret-santa_io_created-at"] = time.Now().UTC().Format(time.RFC3339)
@@ -76,7 +76,7 @@ func (m *GCPSecretManagerMedia) Store(ctx context.Context, secretSanta *secretsa
 		labels["secrets_secret-santa_io_template-checksum"] = m.calculateTemplateChecksum(secretSanta.Spec.Template)
 		labels["secrets_secret-santa_io_source-cr"] = fmt.Sprintf("%s_%s", secretSanta.Namespace, secretSanta.Name)
 	}
-	
+
 	if len(labels) > 0 {
 		createReq.Secret.Labels = labels
 	}

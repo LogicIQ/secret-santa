@@ -60,31 +60,35 @@ func main() {
 	}
 
 	if err := rootCmd.Execute(); err != nil {
+		setupLog.Error(err, "failed to execute command")
 		os.Exit(1)
 	}
 }
 
 func run(cmd *cobra.Command, args []string) {
+	setupLogger()
+	cfg := loadConfig()
+	mgr := createManager(cfg)
+	setupController(mgr, cfg)
+	setupHealthChecks(mgr)
+	startManager(mgr)
+}
+
+func setupLogger() {
 	logFormat := viper.GetString("log-format")
 	logLevel := viper.GetString("log-level")
 	dryRun := viper.GetBool("dry-run")
 
-	// Validate log format to prevent log injection
 	if logFormat != "json" && logFormat != "console" {
 		logFormat = "json"
 	}
 
-	// Validate log level to prevent log injection
 	validLevels := map[string]bool{"debug": true, "info": true, "warn": true, "error": true}
 	if !validLevels[logLevel] {
 		logLevel = "info"
 	}
 
-	opts := zap.Options{
-		Development: logFormat == "console",
-	}
-
-	// Set log level
+	opts := zap.Options{Development: logFormat == "console"}
 	switch logLevel {
 	case "debug":
 		opts.Level = zapcore.DebugLevel
@@ -97,19 +101,23 @@ func run(cmd *cobra.Command, args []string) {
 	}
 
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
-
 	setupLog.Info("Secret Santa starting", "version", version, "gitHash", gitHash)
 	setupLog.Info("Logging configuration", "format", logFormat, "level", logLevel)
 	if dryRun {
 		setupLog.Info("Starting in DRY RUN mode - no secrets will be created")
 	}
+}
 
+func loadConfig() *config.Config {
 	cfg, err := config.Load()
 	if err != nil {
 		setupLog.Error(err, "unable to load config")
 		os.Exit(1)
 	}
+	return cfg
+}
 
+func createManager(cfg *config.Config) ctrl.Manager {
 	var cacheOpts cache.Options
 	if len(cfg.WatchNamespaces) > 0 {
 		cacheOpts.DefaultNamespaces = make(map[string]cache.Config)
@@ -130,8 +138,11 @@ func run(cmd *cobra.Command, args []string) {
 		setupLog.Error(err, "unable to start manager")
 		os.Exit(1)
 	}
+	return mgr
+}
 
-	if err = (&controller.SecretSantaReconciler{
+func setupController(mgr ctrl.Manager, cfg *config.Config) {
+	if err := (&controller.SecretSantaReconciler{
 		Client:             mgr.GetClient(),
 		Scheme:             mgr.GetScheme(),
 		IncludeAnnotations: cfg.IncludeAnnotations,
@@ -144,7 +155,9 @@ func run(cmd *cobra.Command, args []string) {
 		setupLog.Error(err, "unable to create controller", "controller", "SecretSanta")
 		os.Exit(1)
 	}
+}
 
+func setupHealthChecks(mgr ctrl.Manager) {
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
 		setupLog.Error(err, "unable to set up health check")
 		os.Exit(1)
@@ -153,7 +166,9 @@ func run(cmd *cobra.Command, args []string) {
 		setupLog.Error(err, "unable to set up ready check")
 		os.Exit(1)
 	}
+}
 
+func startManager(mgr ctrl.Manager) {
 	setupLog.Info("starting manager")
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
 		setupLog.Error(err, "problem running manager")

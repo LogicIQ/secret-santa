@@ -71,8 +71,15 @@ func (g *LocallySignedCertGenerator) Generate(config map[string]interface{}) (ma
 
 	// Create certificate template from CSR
 	validityHours := getIntConfig(config, "validity_period_hours", 8760) // 1 year default
+	if validityHours <= 0 {
+		return nil, fmt.Errorf("validity_period_hours must be positive, got %d", validityHours)
+	}
+	serialNumber := big.NewInt(time.Now().Unix())
+	if serialNumber.Cmp(big.NewInt(0)) <= 0 {
+		return nil, fmt.Errorf("failed to generate valid serial number")
+	}
 	template := x509.Certificate{
-		SerialNumber:          big.NewInt(time.Now().Unix()),
+		SerialNumber:          serialNumber,
 		Subject:               csr.Subject,
 		NotBefore:             time.Now(),
 		NotAfter:              time.Now().Add(time.Duration(validityHours) * time.Hour),

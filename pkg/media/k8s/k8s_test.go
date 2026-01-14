@@ -21,12 +21,12 @@ func TestK8sSecretsMedia_Store(t *testing.T) {
 	require.NoError(t, secretsantav1alpha1.AddToScheme(scheme))
 
 	tests := []struct {
-		name           string
-		secretSanta    *secretsantav1alpha1.SecretSanta
+		name            string
+		secretSanta     *secretsantav1alpha1.SecretSanta
 		mediaSecretName string
-		data           string
-		expectedName   string
-		expectedData   map[string]string
+		data            string
+		expectedName    string
+		expectedData    map[string]string
 	}{
 		{
 			name: "basic secret with default name",
@@ -87,7 +87,7 @@ func TestK8sSecretsMedia_Store(t *testing.T) {
 					SecretType: "kubernetes.io/tls",
 				},
 			},
-			data: "tls.crt: cert-data\ntls.key: key-data",
+			data:         "tls.crt: cert-data\ntls.key: key-data",
 			expectedName: "tls-secret",
 			expectedData: map[string]string{
 				"tls.crt": "cert-data",
@@ -95,7 +95,7 @@ func TestK8sSecretsMedia_Store(t *testing.T) {
 			},
 		},
 		{
-			name: "TLS secret with incomplete data falls back",
+			name: "TLS secret with incomplete data returns error",
 			secretSanta: &secretsantav1alpha1.SecretSanta{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "tls-secret",
@@ -107,7 +107,7 @@ func TestK8sSecretsMedia_Store(t *testing.T) {
 			},
 			data:         "incomplete tls data",
 			expectedName: "tls-secret",
-			expectedData: map[string]string{"data": "incomplete tls data"},
+			expectedData: nil,
 		},
 	}
 
@@ -120,11 +120,18 @@ func TestK8sSecretsMedia_Store(t *testing.T) {
 			}
 
 			err := media.Store(context.Background(), tt.secretSanta, tt.data, true)
+
+			// If expectedData is nil, we expect an error
+			if tt.expectedData == nil {
+				require.Error(t, err)
+				return
+			}
+
 			require.NoError(t, err)
 
 			// Verify secret was created
 			var secret corev1.Secret
-			err = client.Get(context.Background(), 
+			err = client.Get(context.Background(),
 				types.NamespacedName{Name: tt.expectedName, Namespace: "default"}, &secret)
 			require.NoError(t, err)
 
@@ -176,12 +183,12 @@ func TestK8sSecretsMedia_StoreWithLabelsAndAnnotations(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Equal(t, secretSanta.Spec.Labels, secret.Labels)
-	
+
 	// Check user annotations are preserved
 	for k, v := range secretSanta.Spec.Annotations {
 		assert.Equal(t, v, secret.Annotations[k])
 	}
-	
+
 	// Check metadata annotations are added
 	assert.Contains(t, secret.Annotations, "secrets.secret-santa.io/created-at")
 	assert.Contains(t, secret.Annotations, "secrets.secret-santa.io/generator-types")
@@ -262,7 +269,7 @@ func TestK8sSecretsMedia_MetadataDisabled(t *testing.T) {
 			Generators: []secretsantav1alpha1.GeneratorConfig{
 				{Name: "pass", Type: "random_password"},
 			},
-			SecretType: "Opaque",
+			SecretType:  "Opaque",
 			Annotations: map[string]string{"user": "test"},
 		},
 	}

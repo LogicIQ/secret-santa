@@ -16,32 +16,32 @@ func TestGCPSecretManagerMedia_GetType(t *testing.T) {
 
 func TestGCPSecretManagerMedia_SecretNameResolution(t *testing.T) {
 	tests := []struct {
-		name           string
+		name            string
 		mediaSecretName string
 		specSecretName  string
-		metaName       string
-		expectedName   string
+		metaName        string
+		expectedName    string
 	}{
 		{
-			name:           "media secret name takes priority",
+			name:            "media secret name takes priority",
 			mediaSecretName: "media-secret",
 			specSecretName:  "spec-secret",
-			metaName:       "meta-name",
-			expectedName:   "media-secret",
+			metaName:        "meta-name",
+			expectedName:    "media-secret",
 		},
 		{
-			name:           "spec secret name when no media name",
+			name:            "spec secret name when no media name",
 			mediaSecretName: "",
 			specSecretName:  "spec-secret",
-			metaName:       "meta-name",
-			expectedName:   "spec-secret",
+			metaName:        "meta-name",
+			expectedName:    "spec-secret",
 		},
 		{
-			name:           "meta name when no spec or media name",
+			name:            "meta name when no spec or media name",
 			mediaSecretName: "",
 			specSecretName:  "",
-			metaName:       "meta-name",
-			expectedName:   "meta-name",
+			metaName:        "meta-name",
+			expectedName:    "meta-name",
 		},
 	}
 

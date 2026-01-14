@@ -23,7 +23,7 @@ func Register(generatorType string, generator Generator) {
 func Get(generatorType string) (Generator, error) {
 	globalRegistry.mu.RLock()
 	defer globalRegistry.mu.RUnlock()
-	
+
 	generator, exists := globalRegistry.generators[generatorType]
 	if !exists {
 		return nil, fmt.Errorf("unsupported generator type: %s", generatorType)
@@ -34,7 +34,7 @@ func Get(generatorType string) (Generator, error) {
 func GetSupportedTypes() []string {
 	globalRegistry.mu.RLock()
 	defer globalRegistry.mu.RUnlock()
-	
+
 	types := make([]string, 0, len(globalRegistry.generators))
 	for generatorType := range globalRegistry.generators {
 		types = append(types, generatorType)
@@ -45,7 +45,7 @@ func GetSupportedTypes() []string {
 func IsSupported(generatorType string) bool {
 	globalRegistry.mu.RLock()
 	defer globalRegistry.mu.RUnlock()
-	
+
 	_, exists := globalRegistry.generators[generatorType]
 	return exists
 }

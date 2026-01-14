@@ -22,7 +22,7 @@ spec:
       restartPolicy: Always
       containers:
       - name: manager
-        image: secret-santa:latest
+        image: secret-santa:v0.1.0
         imagePullPolicy: IfNotPresent
         securityContext:
           allowPrivilegeEscalation: false

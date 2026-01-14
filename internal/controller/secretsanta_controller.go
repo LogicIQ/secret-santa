@@ -30,7 +30,8 @@ import (
 )
 
 const (
-	SecretSantaFinalizer = "secrets.secret-santa.io/finalizer"
+	SecretSantaFinalizer   = "secrets.secret-santa.io/finalizer"
+	MaxGeneratorConfigSize = 1024 * 1024 // 1MB
 )
 
 type SecretSantaReconciler struct {
@@ -221,70 +222,40 @@ func (r *SecretSantaReconciler) createMedia(secretSanta *secretsantav1alpha1.Sec
 
 	switch secretSanta.Spec.Media.Type {
 	case "k8s", "":
-		secretName := ""
-		if s, ok := config["secret_name"].(string); ok {
-			secretName = s
-		}
+		secretName, _ := config["secret_name"].(string)
 		return &k8s.K8sSecretsMedia{
 			Client:     r.Client,
 			SecretName: secretName,
 		}, nil
 	case "aws-secrets-manager":
-		region := ""
-		if r, ok := config["region"].(string); ok {
-			region = r
-		}
-		secretName := ""
-		if s, ok := config["secret_name"].(string); ok {
-			secretName = s
-		}
-		kmsKeyId := ""
-		if k, ok := config["kms_key_id"].(string); ok {
-			kmsKeyId = k
-		}
+		region, _ := config["region"].(string)
+		secretName, _ := config["secret_name"].(string)
+		kmsKeyId, _ := config["kms_key_id"].(string)
 		return &aws.AWSSecretsManagerMedia{
 			Region:     region,
 			SecretName: secretName,
 			KMSKeyId:   kmsKeyId,
 		}, nil
 	case "aws-parameter-store":
-		region := ""
-		if r, ok := config["region"].(string); ok {
-			region = r
-		}
-		parameterName := ""
-		if p, ok := config["parameter_name"].(string); ok {
-			parameterName = p
-		}
-		kmsKeyId := ""
-		if k, ok := config["kms_key_id"].(string); ok {
-			kmsKeyId = k
-		}
+		region, _ := config["region"].(string)
+		parameterName, _ := config["parameter_name"].(string)
+		kmsKeyId, _ := config["kms_key_id"].(string)
 		return &aws.AWSParameterStoreMedia{
 			Region:        region,
 			ParameterName: parameterName,
 			KMSKeyId:      kmsKeyId,
 		}, nil
 	case "gcp-secret-manager":
-		projectID := ""
-		if p, ok := config["project_id"].(string); ok {
-			projectID = p
-		}
-		secretName := ""
-		if s, ok := config["secret_name"].(string); ok {
-			secretName = s
-		}
-		credentialsFile := ""
-		if c, ok := config["credentials_file"].(string); ok {
-			credentialsFile = c
-		}
+		projectID, _ := config["project_id"].(string)
+		secretName, _ := config["secret_name"].(string)
+		credentialsFile, _ := config["credentials_file"].(string)
 		return &gcp.GCPSecretManagerMedia{
 			ProjectID:       projectID,
 			SecretName:      secretName,
 			CredentialsFile: credentialsFile,
 		}, nil
 	default:
-		return nil, fmt.Errorf("unsupported media type: %s", secretSanta.Spec.Media.Type)
+		return nil, fmt.Errorf("unsupported media type: %s", sanitizeLogValue(secretSanta.Spec.Media.Type))
 	}
 }
 
@@ -312,25 +283,25 @@ func (r *SecretSantaReconciler) generateTemplateData(generatorConfigs []secretsa
 
 	for _, config := range generatorConfigs {
 		if err := r.validateGeneratorConfig(config); err != nil {
-			return nil, fmt.Errorf("invalid generator config %s: %w", config.Name, err)
+			return nil, fmt.Errorf("invalid generator config %s: %w", sanitizeLogValue(config.Name), err)
 		}
 
 		log := ctrl.Log.WithName("generator").WithValues("name", sanitizeLogValue(config.Name), "type", sanitizeLogValue(config.Type))
-		
+
 		// Get generator from registry
 		gen, err := generators.Get(config.Type)
 		if err != nil {
-			return nil, fmt.Errorf("failed to get generator %s: %w", config.Name, err)
+			return nil, fmt.Errorf("failed to get generator %s: %w", sanitizeLogValue(config.Name), err)
 		}
 
 		// Convert RawExtension to map[string]interface{}
 		var configMap map[string]interface{}
 		if config.Config != nil && len(config.Config.Raw) > 0 {
-			if len(config.Config.Raw) > 1024*1024 { // 1MB limit
-				return nil, fmt.Errorf("config for generator %s is too large (>1MB)", config.Name)
+			if len(config.Config.Raw) > MaxGeneratorConfigSize {
+				return nil, fmt.Errorf("config for generator %s exceeds maximum allowed size", sanitizeLogValue(config.Name))
 			}
 			if err := json.Unmarshal(config.Config.Raw, &configMap); err != nil {
-				return nil, fmt.Errorf("failed to unmarshal config for generator %s: %w", config.Name, err)
+				return nil, fmt.Errorf("failed to unmarshal config for generator %s: %w", sanitizeLogValue(config.Name), err)
 			}
 		}
 		if configMap == nil {
@@ -338,21 +309,21 @@ func (r *SecretSantaReconciler) generateTemplateData(generatorConfigs []secretsa
 		}
 
 		log.V(1).Info("Executing generator")
-		timer := NewGeneratorTimer(config.Type)
+		timer := NewGeneratorTimer(sanitizeLogValue(config.Type))
 		result, err := gen.Generate(configMap)
 		timer.ObserveDuration()
 		if err != nil {
 			log.Error(err, "Generator failed")
-			RecordGeneratorExecution(config.Type, "error")
-			return nil, fmt.Errorf("generator %s failed: %w", config.Name, err)
+			RecordGeneratorExecution(sanitizeLogValue(config.Type), "error")
+			return nil, fmt.Errorf("generator %s failed: %w", sanitizeLogValue(config.Name), err)
 		}
 		if result == nil {
 			log.Error(nil, "Generator returned nil result")
-			RecordGeneratorExecution(config.Type, "error")
-			return nil, fmt.Errorf("generator %s returned nil result", config.Name)
+			RecordGeneratorExecution(sanitizeLogValue(config.Type), "error")
+			return nil, fmt.Errorf("generator %s returned nil result", sanitizeLogValue(config.Name))
 		}
 		log.V(1).Info("Generator completed", "resultKeys", getMapKeys(result))
-		RecordGeneratorExecution(config.Type, "success")
+		RecordGeneratorExecution(sanitizeLogValue(config.Type), "success")
 		data[config.Name] = result
 	}
 
@@ -367,7 +338,7 @@ func (r *SecretSantaReconciler) shouldProcess(secretSanta *secretsantav1alpha1.S
 	if secretSanta == nil {
 		return false
 	}
-	
+
 	// Include annotations: ALL must be present (AND logic)
 	for _, include := range r.IncludeAnnotations {
 		if secretSanta.Annotations == nil {
@@ -503,7 +474,7 @@ func (r *SecretSantaReconciler) handleDryRun(ctx context.Context, secretSanta *s
 	// Collect generator names used
 	generatorsUsed := make([]string, len(secretSanta.Spec.Generators))
 	for i, gen := range secretSanta.Spec.Generators {
-		generatorsUsed[i] = fmt.Sprintf("%s (%s)", gen.Name, gen.Type)
+		generatorsUsed[i] = fmt.Sprintf("%s (%s)", sanitizeLogValue(gen.Name), sanitizeLogValue(gen.Type))
 	}
 
 	// Create dry-run result
@@ -527,7 +498,10 @@ func (r *SecretSantaReconciler) handleDryRun(ctx context.Context, secretSanta *s
 }
 
 func getMapKeys(m map[string]string) []string {
-	if m == nil || len(m) == 0 {
+	if m == nil {
+		return []string{}
+	}
+	if len(m) == 0 {
 		return []string{}
 	}
 	keys := make([]string, 0, len(m))
@@ -535,6 +509,9 @@ func getMapKeys(m map[string]string) []string {
 		if k != "" {
 			keys = append(keys, k)
 		}
+	}
+	if len(keys) == 0 {
+		return []string{}
 	}
 	return keys
 }
@@ -546,14 +523,23 @@ func (r *SecretSantaReconciler) SetupWithManager(mgr ctrl.Manager, maxConcurrent
 	if maxConcurrentReconciles <= 0 {
 		return fmt.Errorf("maxConcurrentReconciles must be greater than 0, got %d", maxConcurrentReconciles)
 	}
-	return ctrl.NewControllerManagedBy(mgr).
+	err := ctrl.NewControllerManagedBy(mgr).
 		For(&secretsantav1alpha1.SecretSanta{}).
 		WithOptions(controller.Options{MaxConcurrentReconciles: maxConcurrentReconciles}).
 		Complete(r)
+	if err != nil {
+		return fmt.Errorf("failed to setup controller: %w", err)
+	}
+	return nil
 }
 
 // sanitizeLogValue removes potentially dangerous characters from log values to prevent log injection
 func sanitizeLogValue(value string) string {
-	// Remove newlines, carriage returns, and other control characters that could be used for log injection
-	return strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(value, "\n", ""), "\r", ""), "\t", "")
+	// Remove all control characters (ASCII < 32) except space to prevent log injection
+	return strings.Map(func(r rune) rune {
+		if r < 32 && r != ' ' {
+			return -1
+		}
+		return r
+	}, value)
 }

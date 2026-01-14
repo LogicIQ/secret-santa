@@ -56,7 +56,7 @@ spec:
     type: aws-parameter-store
     config:
       region: us-east-1
-      parameter_name: custom-db-connection-string
+      parameter_name: /custom-db-connection-string
       kms_key_id: alias/parameter-store-key
   secretName: database-connection-string  # fallback if parameter_name not specified
   labels:

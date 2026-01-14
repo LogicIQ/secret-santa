@@ -24,7 +24,11 @@ func TestBcrypt(t *testing.T) {
 }
 
 func TestEntropy(t *testing.T) {
-	result := Entropy("abc", "abcdefghijklmnopqrstuvwxyz")
+	result, err := Entropy("abc", "abcdefghijklmnopqrstuvwxyz")
+	if err != nil {
+		t.Errorf("Entropy should not return error, got %v", err)
+		return
+	}
 	expected := 14.09 // 3 * log2(26)
 	if result < expected-0.1 || result > expected+0.1 {
 		t.Errorf("Entropy should be approximately %.2f, got %.2f", expected, result)

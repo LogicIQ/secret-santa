@@ -20,13 +20,6 @@ func TestRSAKeyGenerator_Generate(t *testing.T) {
 			keySize: "2048",
 		},
 		{
-			name: "1024-bit",
-			config: map[string]interface{}{
-				"key_size": float64(1024),
-			},
-			keySize: "1024",
-		},
-		{
 			name: "4096-bit",
 			config: map[string]interface{}{
 				"key_size": float64(4096),

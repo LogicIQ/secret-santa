@@ -45,8 +45,11 @@ func Bcrypt(s string) (string, error) {
 	return string(hash), nil
 }
 
-func Entropy(s, charset string) float64 {
-	return float64(len(s)) * math.Log2(float64(len(charset)))
+func Entropy(s, charset string) (float64, error) {
+	if len(charset) == 0 {
+		return 0, fmt.Errorf("charset cannot be empty")
+	}
+	return float64(len(s)) * math.Log2(float64(len(charset))), nil
 }
 
 func CRC32(s string) string {

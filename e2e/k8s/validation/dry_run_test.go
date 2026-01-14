@@ -116,7 +116,10 @@ func TestDryRunValidation(t *testing.T) {
 		}
 
 		for _, condition := range conditions {
-			condMap := condition.(map[string]interface{})
+			condMap, ok := condition.(map[string]interface{})
+			if !ok {
+				continue
+			}
 			if condMap["type"] == "DryRunComplete" && condMap["status"] == "True" {
 				finalStatus = status
 				return true, nil
@@ -259,9 +262,15 @@ func TestDryRunValidationError(t *testing.T) {
 		}
 
 		for _, condition := range conditions {
-			condMap := condition.(map[string]interface{})
+			condMap, ok := condition.(map[string]interface{})
+			if !ok {
+				continue
+			}
 			if condMap["type"] == "DryRunFailed" && condMap["status"] == "False" {
-				message := condMap["message"].(string)
+				message, ok := condMap["message"].(string)
+				if !ok {
+					continue
+				}
 				if strings.Contains(message, "unsupported generator type") {
 					return true, nil
 				}

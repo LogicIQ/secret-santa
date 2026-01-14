@@ -19,9 +19,9 @@ import (
 
 // AWSSecretsManagerMedia stores secrets in AWS Secrets Manager
 type AWSSecretsManagerMedia struct {
-	Region    string
+	Region     string
 	SecretName string
-	KMSKeyId  string
+	KMSKeyId   string
 }
 
 func (m *AWSSecretsManagerMedia) Store(ctx context.Context, secretSanta *secretsantav1alpha1.SecretSanta, data string, enableMetadata bool) error {
@@ -67,17 +67,17 @@ func (m *AWSSecretsManagerMedia) Store(ctx context.Context, secretSanta *secrets
 			Value: aws.String(v),
 		})
 	}
-	
+
 	// Add metadata tags only if enabled
 	if enableMetadata {
-		tags = append(tags, 
+		tags = append(tags,
 			types.Tag{Key: aws.String("secrets.secret-santa.io/created-at"), Value: aws.String(time.Now().UTC().Format(time.RFC3339))},
 			types.Tag{Key: aws.String("secrets.secret-santa.io/generator-types"), Value: aws.String(m.getGeneratorTypes(secretSanta.Spec.Generators))},
 			types.Tag{Key: aws.String("secrets.secret-santa.io/template-checksum"), Value: aws.String(m.calculateTemplateChecksum(secretSanta.Spec.Template))},
 			types.Tag{Key: aws.String("secrets.secret-santa.io/source-cr"), Value: aws.String(fmt.Sprintf("%s/%s", secretSanta.Namespace, secretSanta.Name))},
 		)
 	}
-	
+
 	if len(tags) > 0 {
 		input.Tags = tags
 	}
@@ -92,7 +92,7 @@ func (m *AWSSecretsManagerMedia) GetType() string {
 
 func (m *AWSSecretsManagerMedia) loadAWSConfig() (aws.Config, error) {
 	var opts []func(*config.LoadOptions) error
-	
+
 	if m.Region != "" {
 		opts = append(opts, config.WithRegion(m.Region))
 	}
@@ -123,9 +123,9 @@ func (m *AWSSecretsManagerMedia) calculateTemplateChecksum(template string) stri
 
 // AWSParameterStoreMedia stores secrets in AWS Systems Manager Parameter Store
 type AWSParameterStoreMedia struct {
-	Region       string
+	Region        string
 	ParameterName string
-	KMSKeyId     string
+	KMSKeyId      string
 }
 
 func (m *AWSParameterStoreMedia) Store(ctx context.Context, secretSanta *secretsantav1alpha1.SecretSanta, data string, enableMetadata bool) error {
@@ -161,7 +161,7 @@ func (m *AWSParameterStoreMedia) Store(ctx context.Context, secretSanta *secrets
 			Value: aws.String(v),
 		})
 	}
-	
+
 	// Add metadata tags only if enabled
 	if enableMetadata {
 		tags = append(tags,
@@ -194,7 +194,7 @@ func (m *AWSParameterStoreMedia) GetType() string {
 
 func (m *AWSParameterStoreMedia) loadAWSConfig() (aws.Config, error) {
 	var opts []func(*config.LoadOptions) error
-	
+
 	if m.Region != "" {
 		opts = append(opts, config.WithRegion(m.Region))
 	}

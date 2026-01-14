@@ -23,7 +23,7 @@ var (
 			Name:      "success_generation_total",
 			Help:      "Successful secret generations",
 		},
-		[]string{"secretsanta", "namespace"},
+		[]string{"resource_name", "resource_namespace"},
 	)
 
 	FailedGenerationTotal = prometheus.NewCounterVec(
@@ -219,49 +219,64 @@ func RecordReconcileError(name, namespace, reason string) {
 	FailedGenerationTotal.WithLabelValues(name, namespace, reason).Inc()
 }
 
-func RecordTemplateValidationError(name, namespace string) {
-	TemplateValidationFailedTotal.WithLabelValues(name, namespace).Inc()
+func RecordTemplateValidationError(resourceName, resourceNamespace string) {
+	TemplateValidationFailedTotal.WithLabelValues(resourceName, resourceNamespace).Inc()
 }
 
-func RecordSecretGenerated(name, namespace, secretType string) {
+func RecordSecretGenerated(name, namespace, mediaType string) {
 	SuccessGenerationTotal.WithLabelValues(name, namespace).Inc()
 	SyncCallCount.WithLabelValues(name, namespace).Inc()
 }
 
-func UpdateSecretInstances(name, namespace string, count float64) {
-	SecretInstances.WithLabelValues(name, namespace).Set(count)
+func UpdateSecretInstances(name, namespace string, instanceCount float64) {
+	SecretInstances.WithLabelValues(name, namespace).Set(instanceCount)
 }
 
 var (
-	SyncCallCount = prometheus.NewCounterVec(prometheus.CounterOpts{
-		Subsystem: SecretSantaSubsystem,
-		Name:      "controller_sync_call_count",
-		Help:      "The number of reconciliation loops made by a controller",
-	}, []string{"secretsanta_name", "secretsanta_namespace"})
+	SyncCallCount = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Subsystem: SecretSantaSubsystem,
+			Name:      "controller_sync_call_count",
+			Help:      "The number of reconciliation loops made by a controller",
+		},
+		[]string{"secretsanta_name", "secretsanta_namespace"},
+	)
 
-	SyncErrorCount = prometheus.NewCounterVec(prometheus.CounterOpts{
-		Subsystem: SecretSantaSubsystem,
-		Name:      "controller_sync_error_count",
-		Help:      "The number of failed reconciliation loops",
-	}, []string{"secretsanta_name", "secretsanta_namespace"})
+	SyncErrorCount = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Subsystem: SecretSantaSubsystem,
+			Name:      "controller_sync_error_count",
+			Help:      "The number of failed reconciliation loops",
+		},
+		[]string{"secretsanta_name", "secretsanta_namespace"},
+	)
 
-	LastReconcileDuration = prometheus.NewGaugeVec(prometheus.GaugeOpts{
-		Subsystem: SecretSantaSubsystem,
-		Name:      "controller_last_reconcile_duration_seconds",
-		Help:      "Duration of the last reconcile operation",
-	}, []string{"secretsanta_name", "secretsanta_namespace"})
+	LastReconcileDuration = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Subsystem: SecretSantaSubsystem,
+			Name:      "controller_last_reconcile_duration_seconds",
+			Help:      "Duration of the last reconcile operation",
+		},
+		[]string{"secretsanta_name", "secretsanta_namespace"},
+	)
 
-	ReconcileActive = prometheus.NewGaugeVec(prometheus.GaugeOpts{
-		Subsystem: SecretSantaSubsystem,
-		Name:      "controller_reconcile_active",
-		Help:      "Shows if Reconcile loop is running",
-	}, []string{"secretsanta_name", "secretsanta_namespace"})
+	ReconcileActive = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Subsystem: SecretSantaSubsystem,
+			Name:      "controller_reconcile_active",
+			Help:      "Shows if Reconcile loop is running",
+		},
+		[]string{"secretsanta_name", "secretsanta_namespace"},
+	)
 
-	SecretInstances = prometheus.NewGaugeVec(prometheus.GaugeOpts{
-		Subsystem: SecretSantaSubsystem,
-		Name:      "controller_secrets_instances",
-		Help:      "The number of desired secret instances",
-	}, []string{"secretsanta_name", "secretsanta_namespace"})
+	SecretInstances = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Subsystem: SecretSantaSubsystem,
+			Name:      "controller_secrets_instances",
+			Help:      "The number of desired secret instances",
+		},
+		[]string{"secretsanta_name", "secretsanta_namespace"},
+	)
 )
 
 var registerOnce sync.Once

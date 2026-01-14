@@ -51,15 +51,21 @@ func (m *K8sSecretsMedia) Store(ctx context.Context, secretSanta *secretsantav1a
 					continue
 				}
 				if strings.HasPrefix(line, "tls.crt:") {
-					stringData["tls.crt"] = strings.TrimSpace(strings.TrimPrefix(line, "tls.crt:"))
+					certValue := strings.TrimSpace(strings.TrimPrefix(line, "tls.crt:"))
+					if certValue != "" {
+						stringData["tls.crt"] = certValue
+					}
 				} else if strings.HasPrefix(line, "tls.key:") {
-					stringData["tls.key"] = strings.TrimSpace(strings.TrimPrefix(line, "tls.key:"))
+					keyValue := strings.TrimSpace(strings.TrimPrefix(line, "tls.key:"))
+					if keyValue != "" {
+						stringData["tls.key"] = keyValue
+					}
 				}
 			}
 		}
-		// If we don't have the required fields, fall back to data field
+		// If we don't have the required fields, return error for TLS secrets
 		if stringData["tls.crt"] == "" || stringData["tls.key"] == "" {
-			stringData = map[string]string{"data": data}
+			return fmt.Errorf("TLS secret requires both tls.crt and tls.key fields")
 		}
 	} else {
 		stringData["data"] = data
@@ -70,7 +76,7 @@ func (m *K8sSecretsMedia) Store(ctx context.Context, secretSanta *secretsantav1a
 	for k, v := range secretSanta.Spec.Annotations {
 		annotations[k] = v
 	}
-	
+
 	// Add metadata annotations only if enabled
 	if enableMetadata {
 		annotations["secrets.secret-santa.io/created-at"] = time.Now().UTC().Format(time.RFC3339)

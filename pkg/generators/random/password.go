@@ -50,14 +50,24 @@ func (g *PasswordGenerator) Generate(config map[string]interface{}) (map[string]
 	for i := range password {
 		n, err := rand.Int(rand.Reader, charsetLen)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to generate random number: %w", err)
 		}
 		password[i] = charsetStr[n.Int64()]
 	}
 
+	if len(password) != length {
+		return nil, fmt.Errorf("generated password length mismatch: expected %d, got %d", length, len(password))
+	}
+
+	passwordStr := string(password)
+	if len(passwordStr) == 0 {
+		return nil, fmt.Errorf("generated password is empty")
+	}
+
 	return map[string]string{
-		"value":       string(password),
+		"value":       passwordStr,
 		"charset":     charsetStr,
 		"generatedAt": time.Now().UTC().Format(time.RFC3339),
+		"length":      fmt.Sprintf("%d", length),
 	}, nil
 }

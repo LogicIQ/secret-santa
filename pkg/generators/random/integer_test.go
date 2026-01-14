@@ -39,14 +39,14 @@ func TestIntegerGenerator_Generate(t *testing.T) {
 				return
 			}
 
-			if _, ok := result["value"]; !ok {
-				t.Error("Generate() missing value key")
+			valStr, ok := result["value"]
+			if !ok {
+				t.Fatal("Generate() missing value key")
 			}
 
-			val, err := strconv.Atoi(result["value"])
+			val, err := strconv.Atoi(valStr)
 			if err != nil {
-				t.Errorf("Generate() invalid integer: %v", err)
-				return
+				t.Fatalf("Generate() invalid integer: %v", err)
 			}
 
 			if val < tt.min || val > tt.max {
@@ -54,4 +54,16 @@ func TestIntegerGenerator_Generate(t *testing.T) {
 			}
 		})
 	}
+
+	// Test error case
+	t.Run("min greater than max", func(t *testing.T) {
+		config := map[string]interface{}{
+			"min": float64(20),
+			"max": float64(10),
+		}
+		_, err := gen.Generate(config)
+		if err == nil {
+			t.Error("Generate() expected error when min > max")
+		}
+	})
 }
