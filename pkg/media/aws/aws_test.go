@@ -168,37 +168,33 @@ func TestAWSMedia_ConfigFields(t *testing.T) {
 }
 
 func TestAWSSecretsManagerMedia_getGeneratorTypes(t *testing.T) {
-	media := &AWSSecretsManagerMedia{}
 	generators := []secretsantav1alpha1.GeneratorConfig{
 		{Type: "random_password"},
 		{Type: "crypto_aes_key"},
 	}
-	result := media.getGeneratorTypes(generators)
+	result := getGeneratorTypes(generators)
 	assert.Equal(t, "random_password,crypto_aes_key", result)
 }
 
 func TestAWSSecretsManagerMedia_calculateTemplateChecksum(t *testing.T) {
-	media := &AWSSecretsManagerMedia{}
 	template := "password: {{ .pass.password }}"
-	checksum := media.calculateTemplateChecksum(template)
+	checksum := calculateTemplateChecksum(template)
 	assert.Len(t, checksum, 16)
-	assert.Equal(t, checksum, media.calculateTemplateChecksum(template))
+	assert.Equal(t, checksum, calculateTemplateChecksum(template))
 }
 
 func TestAWSParameterStoreMedia_getGeneratorTypes(t *testing.T) {
-	media := &AWSParameterStoreMedia{}
 	generators := []secretsantav1alpha1.GeneratorConfig{
 		{Type: "tls_private_key"},
 		{Type: "random_uuid"},
 	}
-	result := media.getGeneratorTypes(generators)
+	result := getGeneratorTypes(generators)
 	assert.Equal(t, "tls_private_key,random_uuid", result)
 }
 
 func TestAWSParameterStoreMedia_calculateTemplateChecksum(t *testing.T) {
-	media := &AWSParameterStoreMedia{}
 	template := "api_key: {{ .key.value }}"
-	checksum := media.calculateTemplateChecksum(template)
+	checksum := calculateTemplateChecksum(template)
 	assert.Len(t, checksum, 16)
-	assert.Equal(t, checksum, media.calculateTemplateChecksum(template))
+	assert.Equal(t, checksum, calculateTemplateChecksum(template))
 }

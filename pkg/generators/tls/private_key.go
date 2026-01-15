@@ -122,10 +122,18 @@ func (g *PrivateKeyGenerator) generateECDSA(config map[string]interface{}) (map[
 		Bytes: publicKeyBytes,
 	})
 
+	// OpenSSH format
+	sshPublicKey, err := ssh.NewPublicKey(&privateKey.PublicKey)
+	if err != nil {
+		return nil, err
+	}
+
 	return map[string]string{
-		"private_key_pem":       string(privateKeyPEM),
-		"private_key_pem_pkcs8": string(privateKeyPEM),
-		"public_key_pem":        string(publicKeyPEM),
+		"private_key_pem":               string(privateKeyPEM),
+		"public_key_pem":                string(publicKeyPEM),
+		"public_key_openssh":            string(ssh.MarshalAuthorizedKey(sshPublicKey)),
+		"public_key_fingerprint_md5":    ssh.FingerprintLegacyMD5(sshPublicKey),
+		"public_key_fingerprint_sha256": ssh.FingerprintSHA256(sshPublicKey),
 	}, nil
 }
 
@@ -155,9 +163,17 @@ func (g *PrivateKeyGenerator) generateED25519(config map[string]interface{}) (ma
 		Bytes: publicKeyBytes,
 	})
 
+	// OpenSSH format
+	sshPublicKey, err := ssh.NewPublicKey(publicKey)
+	if err != nil {
+		return nil, err
+	}
+
 	return map[string]string{
-		"private_key_pem":       string(privateKeyPEM),
-		"private_key_pem_pkcs8": string(privateKeyPEM),
-		"public_key_pem":        string(publicKeyPEMBytes),
+		"private_key_pem":               string(privateKeyPEM),
+		"public_key_pem":                string(publicKeyPEMBytes),
+		"public_key_openssh":            string(ssh.MarshalAuthorizedKey(sshPublicKey)),
+		"public_key_fingerprint_md5":    ssh.FingerprintLegacyMD5(sshPublicKey),
+		"public_key_fingerprint_sha256": ssh.FingerprintSHA256(sshPublicKey),
 	}, nil
 }

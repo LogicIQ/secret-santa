@@ -32,7 +32,7 @@ func TestSelfSignedCertGenerator_Generate(t *testing.T) {
 				return
 			}
 
-			expectedKeys := []string{"cert_pem", "key_algorithm", "validity_start_time", "validity_end_time"}
+			expectedKeys := []string{"cert_pem", "private_key_pem", "key_algorithm", "validity_start_time", "validity_end_time"}
 			for _, key := range expectedKeys {
 				if _, ok := result[key]; !ok {
 					t.Errorf("Generate() missing key %s", key)
@@ -40,7 +40,12 @@ func TestSelfSignedCertGenerator_Generate(t *testing.T) {
 			}
 
 			// Validate PEM format
-			block, rest := pem.Decode([]byte(result["cert_pem"]))
+			certPEM, ok := result["cert_pem"]
+			if !ok || certPEM == "" {
+				t.Error("Generate() missing or empty cert_pem")
+				return
+			}
+			block, rest := pem.Decode([]byte(certPEM))
 			if block == nil {
 				t.Error("Generate() invalid certificate PEM")
 				return

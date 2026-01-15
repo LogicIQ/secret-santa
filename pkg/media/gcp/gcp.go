@@ -10,6 +10,8 @@ import (
 	secretmanager "cloud.google.com/go/secretmanager/apiv1"
 	"cloud.google.com/go/secretmanager/apiv1/secretmanagerpb"
 	"google.golang.org/api/option"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	secretsantav1alpha1 "github.com/logicIQ/secret-santa/api/v1alpha1"
 )
@@ -82,8 +84,10 @@ func (m *GCPSecretManagerMedia) Store(ctx context.Context, secretSanta *secretsa
 	}
 
 	_, err = client.CreateSecret(ctx, createReq)
-	if err != nil && !strings.Contains(err.Error(), "already exists") {
-		return fmt.Errorf("failed to create secret: %w", err)
+	if err != nil {
+		if st, ok := status.FromError(err); !ok || st.Code() != codes.AlreadyExists {
+			return fmt.Errorf("failed to create secret: %w", err)
+		}
 	}
 
 	// Add secret version with the data

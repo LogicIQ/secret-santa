@@ -15,7 +15,8 @@ type SelfSignedCertGenerator struct{}
 
 func (g *SelfSignedCertGenerator) Generate(config map[string]interface{}) (map[string]string, error) {
 	// Generate private key
-	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	keySize := getIntConfig(config, "key_size", 2048)
+	privateKey, err := rsa.GenerateKey(rand.Reader, keySize)
 	if err != nil {
 		return nil, err
 	}
@@ -26,13 +27,17 @@ func (g *SelfSignedCertGenerator) Generate(config map[string]interface{}) (map[s
 		return nil, err
 	}
 
+	validityDays := getIntConfig(config, "validity_days", 365)
+	notBefore := time.Now()
+	notAfter := notBefore.Add(time.Duration(validityDays) * 24 * time.Hour)
+
 	template := x509.Certificate{
 		SerialNumber: serialNumber,
 		Subject: pkix.Name{
 			CommonName: getStringConfig(config, "common_name", "localhost"),
 		},
-		NotBefore:   time.Now(),
-		NotAfter:    time.Now().Add(365 * 24 * time.Hour),
+		NotBefore:   notBefore,
+		NotAfter:    notAfter,
 		KeyUsage:    x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
 		ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
 		DNSNames:    []string{getStringConfig(config, "common_name", "localhost")},

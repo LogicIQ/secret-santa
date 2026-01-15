@@ -19,7 +19,11 @@ func TestBcrypt(t *testing.T) {
 		return
 	}
 	if !strings.HasPrefix(result, "$2a$") {
-		t.Errorf("Bcrypt should return hash starting with $2a$, got %s", result[:10])
+		if len(result) > 10 {
+			t.Errorf("Bcrypt should return hash starting with $2a$, got %s", result[:10])
+		} else {
+			t.Errorf("Bcrypt should return hash starting with $2a$, got %s", result)
+		}
 	}
 }
 

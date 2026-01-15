@@ -51,7 +51,7 @@ func TestPrivateKeyGenerator_Generate(t *testing.T) {
 				return
 			}
 
-			expectedKeys := []string{"private_key_pem", "private_key_pem_pkcs8", "public_key_pem"}
+			expectedKeys := []string{"private_key_pem", "public_key_pem", "public_key_openssh", "public_key_fingerprint_md5", "public_key_fingerprint_sha256"}
 			for _, key := range expectedKeys {
 				if _, ok := result[key]; !ok {
 					t.Errorf("Generate() missing key %s", key)

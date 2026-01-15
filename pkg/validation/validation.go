@@ -12,6 +12,15 @@ import (
 	tmplpkg "github.com/logicIQ/secret-santa/pkg/template"
 )
 
+var (
+	genericMaskPatterns = []*regexp.Regexp{
+		regexp.MustCompile(`(\w+)\s*[:=]\s*([^\s\n]+)`),
+		regexp.MustCompile(`"([^"]{8,})"`),
+		regexp.MustCompile(`'([^']{8,})'`),
+	}
+	separatorPattern = regexp.MustCompile(`[:=]`)
+)
+
 func ValidateTemplate(tmplStr string) error {
 	if tmplStr == "" {
 		return fmt.Errorf("template cannot be empty")
@@ -116,18 +125,11 @@ func maskYAMLData(data string) string {
 }
 
 func maskGenericData(data string) string {
-	patterns := []string{
-		`(\w+)\s*[:=]\s*([^\s\n]+)`,
-		`"([^"]{8,})"`,
-		`'([^']{8,})'`,
-	}
-
 	result := data
-	for _, pattern := range patterns {
-		re := regexp.MustCompile(pattern)
+	for _, re := range genericMaskPatterns {
 		result = re.ReplaceAllStringFunc(result, func(match string) string {
 			if strings.Contains(match, ":") || strings.Contains(match, "=") {
-				parts := regexp.MustCompile(`[:=]`).Split(match, 2)
+				parts := separatorPattern.Split(match, 2)
 				if len(parts) == 2 {
 					separator := ":"
 					if strings.Contains(match, "=") {

@@ -29,10 +29,10 @@ func getIntConfig(config map[string]interface{}, key string, defaultValue int) i
 
 func getStringSliceConfig(config map[string]interface{}, key string) []string {
 	if val, ok := config[key].([]interface{}); ok {
-		result := make([]string, len(val))
-		for i, v := range val {
+		var result []string
+		for _, v := range val {
 			if str, ok := v.(string); ok {
-				result[i] = str
+				result = append(result, str)
 			}
 		}
 		return result

@@ -133,7 +133,7 @@ Generates Ed25519 public/private key pairs for modern cryptographic applications
 
 ### TLS Private Key
 
-Generates private keys for TLS certificates.
+Generates private keys for TLS certificates with SSH public key formats.
 
 ```yaml
 - name: tlskey
@@ -144,7 +144,14 @@ Generates private keys for TLS certificates.
     curve: "P256"       # ECDSA curve: "P224", "P256", "P384", "P521"
 ```
 
-**Template Usage**: `{{ .tlskey.private_key_pem }}`
+**Template Usage**:
+- Private key PEM: `{{ .tlskey.private_key_pem }}`
+- Public key PEM: `{{ .tlskey.public_key_pem }}`
+- OpenSSH public key: `{{ .tlskey.public_key_openssh }}`
+- MD5 fingerprint: `{{ .tlskey.public_key_fingerprint_md5 }}`
+- SHA256 fingerprint: `{{ .tlskey.public_key_fingerprint_sha256 }}`
+
+**Note**: All algorithms (RSA, ECDSA, Ed25519) now provide the same output fields including SSH public key formats and fingerprints.
 
 ### Self-Signed Certificate
 

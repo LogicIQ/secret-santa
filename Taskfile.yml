@@ -57,9 +57,9 @@ tasks:
     desc: Run complete e2e test suite
     cmds:
       # Setup
-      - go install sigs.k8s.io/kind@latest || echo "Kind already installed"
-      - go install sigs.k8s.io/controller-tools/cmd/controller-gen@latest || echo "Controller-gen already installed"
-      - kind create cluster --config=e2e/k8s/kind-config.yaml --name=secret-santa-e2e || echo "Cluster exists, reusing..."
+      - go install sigs.k8s.io/kind@latest || echo "Failed to install kind"
+      - go install sigs.k8s.io/controller-tools/cmd/controller-gen@latest || echo "Failed to install controller-gen"
+      - kind create cluster --config=e2e/k8s/kind-config.yaml --name=secret-santa-e2e || echo "Failed to create cluster"
       - kubectl config use-context kind-secret-santa-e2e
       
       # Generate CRDs
@@ -69,7 +69,7 @@ tasks:
       - kubectl delete deployment secret-santa-controller -n secret-santa-system --ignore-not-found=true
       - task: docker:build
       - kind load docker-image secret-santa:latest --name=secret-santa-e2e
-      - kubectl create namespace secret-santa-system --dry-run=client -o yaml | kubectl apply -f - || echo "Namespace exists"
+      - kubectl create namespace secret-santa-system --dry-run=client -o yaml | kubectl apply -f -
       - kubectl apply -f config/crd/bases/
       - kubectl apply -f config/rbac/
       - kubectl apply -f config/manager/
@@ -81,4 +81,4 @@ tasks:
   e2e:cleanup:
     desc: Cleanup e2e environment
     cmds:
-      - kind delete cluster --name=secret-santa-e2e || echo "Cluster doesn't exist"
+      - kind delete cluster --name=secret-santa-e2e || echo "Failed to delete cluster"

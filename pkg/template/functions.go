@@ -22,7 +22,8 @@ func FuncMap() template.FuncMap {
 	funcMap["entropy"] = Entropy
 	funcMap["crc32"] = CRC32
 	funcMap["urlSafeB64"] = URLSafeBase64
-	funcMap["compact"] = Compact
+	funcMap["removeHyphens"] = RemoveHyphens
+	funcMap["compact"] = RemoveHyphens // Deprecated: use removeHyphens instead
 	funcMap["toBinary"] = ToBinary
 	funcMap["toHex"] = ToHex
 	return funcMap
@@ -60,8 +61,13 @@ func URLSafeBase64(s string) string {
 	return base64.URLEncoding.EncodeToString([]byte(s))
 }
 
-func Compact(s string) string {
+func RemoveHyphens(s string) string {
 	return strings.ReplaceAll(s, "-", "")
+}
+
+// Compact is deprecated. Use RemoveHyphens instead.
+func Compact(s string) string {
+	return RemoveHyphens(s)
 }
 
 func ToBinary(i interface{}) string {

@@ -106,9 +106,7 @@ func TestAzureKeyVaultMedia_SecretNameSanitization(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Simulate the sanitization logic
-			result := tt.input
-			result = replaceAll(result, "_", "-")
-			result = replaceAll(result, ".", "-")
+			result := sanitizeAzureSecretName(tt.input)
 			assert.Equal(t, tt.expected, result)
 		})
 	}
@@ -158,17 +156,4 @@ func TestAzureKeyVaultMedia_SingleGenerator(t *testing.T) {
 	}
 	result := media.getGeneratorTypes(generators)
 	assert.Equal(t, "random_uuid", result)
-}
-
-// Helper function for testing
-func replaceAll(s, old, new string) string {
-	result := ""
-	for _, c := range s {
-		if string(c) == old {
-			result += new
-		} else {
-			result += string(c)
-		}
-	}
-	return result
 }

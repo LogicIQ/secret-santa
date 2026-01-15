@@ -2,6 +2,7 @@ package time
 
 import (
 	"fmt"
+	"strconv"
 	"time"
 )
 
@@ -25,12 +26,12 @@ func (g *StaticGenerator) Generate(config map[string]interface{}) (map[string]st
 
 	return map[string]string{
 		"rfc3339": t.Format(time.RFC3339),
-		"unix":    fmt.Sprintf("%d", t.Unix()),
-		"year":    fmt.Sprintf("%d", t.Year()),
-		"month":   fmt.Sprintf("%d", t.Month()),
-		"day":     fmt.Sprintf("%d", t.Day()),
-		"hour":    fmt.Sprintf("%d", t.Hour()),
-		"minute":  fmt.Sprintf("%d", t.Minute()),
-		"second":  fmt.Sprintf("%d", t.Second()),
+		"unix":    strconv.FormatInt(t.Unix(), 10),
+		"year":    strconv.Itoa(t.Year()),
+		"month":   strconv.Itoa(int(t.Month())),
+		"day":     strconv.Itoa(t.Day()),
+		"hour":    strconv.Itoa(t.Hour()),
+		"minute":  strconv.Itoa(t.Minute()),
+		"second":  strconv.Itoa(t.Second()),
 	}, nil
 }

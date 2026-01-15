@@ -17,6 +17,27 @@ import (
 	secretsantav1alpha1 "github.com/logicIQ/secret-santa/api/v1alpha1"
 )
 
+// getGeneratorTypes extracts generator types from the configuration
+func getGeneratorTypes(generators []secretsantav1alpha1.GeneratorConfig) string {
+	if len(generators) == 0 {
+		return ""
+	}
+	var builder strings.Builder
+	for i, gen := range generators {
+		if i > 0 {
+			builder.WriteByte(',')
+		}
+		builder.WriteString(gen.Type)
+	}
+	return builder.String()
+}
+
+// calculateTemplateChecksum creates a SHA256 checksum of the template
+func calculateTemplateChecksum(template string) string {
+	hash := sha256.Sum256([]byte(template))
+	return fmt.Sprintf("%x", hash)[:16]
+}
+
 // AWSSecretsManagerMedia stores secrets in AWS Secrets Manager
 type AWSSecretsManagerMedia struct {
 	Region     string
@@ -72,8 +93,8 @@ func (m *AWSSecretsManagerMedia) Store(ctx context.Context, secretSanta *secrets
 	if enableMetadata {
 		tags = append(tags,
 			types.Tag{Key: aws.String("secrets.secret-santa.io/created-at"), Value: aws.String(time.Now().UTC().Format(time.RFC3339))},
-			types.Tag{Key: aws.String("secrets.secret-santa.io/generator-types"), Value: aws.String(m.getGeneratorTypes(secretSanta.Spec.Generators))},
-			types.Tag{Key: aws.String("secrets.secret-santa.io/template-checksum"), Value: aws.String(m.calculateTemplateChecksum(secretSanta.Spec.Template))},
+			types.Tag{Key: aws.String("secrets.secret-santa.io/generator-types"), Value: aws.String(getGeneratorTypes(secretSanta.Spec.Generators))},
+			types.Tag{Key: aws.String("secrets.secret-santa.io/template-checksum"), Value: aws.String(calculateTemplateChecksum(secretSanta.Spec.Template))},
 			types.Tag{Key: aws.String("secrets.secret-santa.io/source-cr"), Value: aws.String(fmt.Sprintf("%s/%s", secretSanta.Namespace, secretSanta.Name))},
 		)
 	}
@@ -98,27 +119,6 @@ func (m *AWSSecretsManagerMedia) loadAWSConfig() (aws.Config, error) {
 	}
 
 	return config.LoadDefaultConfig(context.TODO(), opts...)
-}
-
-// getGeneratorTypes extracts generator types from the configuration
-func (m *AWSSecretsManagerMedia) getGeneratorTypes(generators []secretsantav1alpha1.GeneratorConfig) string {
-	if len(generators) == 0 {
-		return ""
-	}
-	var builder strings.Builder
-	for i, gen := range generators {
-		if i > 0 {
-			builder.WriteByte(',')
-		}
-		builder.WriteString(gen.Type)
-	}
-	return builder.String()
-}
-
-// calculateTemplateChecksum creates a SHA256 checksum of the template
-func (m *AWSSecretsManagerMedia) calculateTemplateChecksum(template string) string {
-	hash := sha256.Sum256([]byte(template))
-	return fmt.Sprintf("%x", hash)[:16] // Use first 16 chars for brevity
 }
 
 // AWSParameterStoreMedia stores secrets in AWS Systems Manager Parameter Store
@@ -166,8 +166,8 @@ func (m *AWSParameterStoreMedia) Store(ctx context.Context, secretSanta *secrets
 	if enableMetadata {
 		tags = append(tags,
 			ssm_types.Tag{Key: aws.String("secrets.secret-santa.io/created-at"), Value: aws.String(time.Now().UTC().Format(time.RFC3339))},
-			ssm_types.Tag{Key: aws.String("secrets.secret-santa.io/generator-types"), Value: aws.String(m.getGeneratorTypes(secretSanta.Spec.Generators))},
-			ssm_types.Tag{Key: aws.String("secrets.secret-santa.io/template-checksum"), Value: aws.String(m.calculateTemplateChecksum(secretSanta.Spec.Template))},
+			ssm_types.Tag{Key: aws.String("secrets.secret-santa.io/generator-types"), Value: aws.String(getGeneratorTypes(secretSanta.Spec.Generators))},
+			ssm_types.Tag{Key: aws.String("secrets.secret-santa.io/template-checksum"), Value: aws.String(calculateTemplateChecksum(secretSanta.Spec.Template))},
 			ssm_types.Tag{Key: aws.String("secrets.secret-santa.io/source-cr"), Value: aws.String(fmt.Sprintf("%s/%s", secretSanta.Namespace, secretSanta.Name))},
 		)
 	}
@@ -200,25 +200,4 @@ func (m *AWSParameterStoreMedia) loadAWSConfig() (aws.Config, error) {
 	}
 
 	return config.LoadDefaultConfig(context.TODO(), opts...)
-}
-
-// getGeneratorTypes extracts generator types from the configuration
-func (m *AWSParameterStoreMedia) getGeneratorTypes(generators []secretsantav1alpha1.GeneratorConfig) string {
-	if len(generators) == 0 {
-		return ""
-	}
-	var builder strings.Builder
-	for i, gen := range generators {
-		if i > 0 {
-			builder.WriteByte(',')
-		}
-		builder.WriteString(gen.Type)
-	}
-	return builder.String()
-}
-
-// calculateTemplateChecksum creates a SHA256 checksum of the template
-func (m *AWSParameterStoreMedia) calculateTemplateChecksum(template string) string {
-	hash := sha256.Sum256([]byte(template))
-	return fmt.Sprintf("%x", hash)[:16] // Use first 16 chars for brevity
 }

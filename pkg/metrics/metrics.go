@@ -166,7 +166,6 @@ func RecordGeneratorExecution(generatorType, status string) {
 const (
 	StatusSuccess = "success"
 	StatusFailed  = "failed"
-	StatusFailure = "failure"
 )
 
 func RecordKubernetesClientRequest(operation, status string) {
@@ -191,10 +190,10 @@ func UpdateLastReconciliationTime() {
 func UpdateReconciliationStatus(success bool) {
 	if success {
 		ReconciliationStatus.WithLabelValues(StatusSuccess).Set(1)
-		ReconciliationStatus.WithLabelValues(StatusFailure).Set(0)
+		ReconciliationStatus.WithLabelValues(StatusFailed).Set(0)
 	} else {
 		ReconciliationStatus.WithLabelValues(StatusSuccess).Set(0)
-		ReconciliationStatus.WithLabelValues(StatusFailure).Set(1)
+		ReconciliationStatus.WithLabelValues(StatusFailed).Set(1)
 	}
 }
 
