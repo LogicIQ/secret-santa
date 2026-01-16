@@ -8,7 +8,10 @@ func getStringConfig(config map[string]interface{}, key, defaultValue string) st
 }
 
 func getIntConfig(config map[string]interface{}, key string, defaultValue int) int {
-	if val, ok := config[key].(float64); ok {
+	switch val := config[key].(type) {
+	case int:
+		return val
+	case float64:
 		return int(val)
 	}
 	return defaultValue

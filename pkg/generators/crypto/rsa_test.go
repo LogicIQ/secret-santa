@@ -22,7 +22,7 @@ func TestRSAKeyGenerator_Generate(t *testing.T) {
 		{
 			name: "4096-bit",
 			config: map[string]interface{}{
-				"key_size": float64(4096),
+				"key_size": 4096,
 			},
 			keySize: "4096",
 		},

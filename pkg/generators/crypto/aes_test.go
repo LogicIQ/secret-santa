@@ -24,7 +24,7 @@ func TestAESKeyGenerator_Generate(t *testing.T) {
 		{
 			name: "128-bit",
 			config: map[string]interface{}{
-				"key_size": float64(128),
+				"key_size": 128,
 			},
 			keySize: 128,
 			bytes:   16,
@@ -32,7 +32,7 @@ func TestAESKeyGenerator_Generate(t *testing.T) {
 		{
 			name: "192-bit",
 			config: map[string]interface{}{
-				"key_size": float64(192),
+				"key_size": 192,
 			},
 			keySize: 192,
 			bytes:   24,
@@ -79,7 +79,7 @@ func TestAESKeyGenerator_Generate(t *testing.T) {
 	// Test invalid key size
 	t.Run("invalid key size", func(t *testing.T) {
 		config := map[string]interface{}{
-			"key_size": float64(512),
+			"key_size": 512,
 		}
 		_, err := gen.Generate(config)
 		if err == nil {

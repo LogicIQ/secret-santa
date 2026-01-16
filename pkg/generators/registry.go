@@ -14,10 +14,14 @@ var globalRegistry = &Registry{
 	generators: make(map[string]Generator),
 }
 
-func Register(generatorType string, generator Generator) {
+func Register(generatorType string, generator Generator) error {
 	globalRegistry.mu.Lock()
 	defer globalRegistry.mu.Unlock()
+	if _, exists := globalRegistry.generators[generatorType]; exists {
+		return fmt.Errorf("generator type %s is already registered", generatorType)
+	}
 	globalRegistry.generators[generatorType] = generator
+	return nil
 }
 
 func Get(generatorType string) (Generator, error) {

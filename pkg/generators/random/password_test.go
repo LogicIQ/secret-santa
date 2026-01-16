@@ -48,10 +48,17 @@ func TestPasswordGenerator_Generate(t *testing.T) {
 				}
 			}
 
-			if value, ok := result["value"]; !ok {
-				t.Error("Generate() missing value key")
-			} else if len(value) == 0 {
+			value := result["value"]
+			if len(value) == 0 {
 				t.Error("Generate() value is empty")
+				return
+			}
+			expectedLen := 16
+			if l, ok := tt.config["length"].(float64); ok {
+				expectedLen = int(l)
+			}
+			if len(value) != expectedLen {
+				t.Errorf("Generate() value length = %d, want %d", len(value), expectedLen)
 			}
 		})
 	}

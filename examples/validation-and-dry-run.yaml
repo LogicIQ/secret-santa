@@ -52,7 +52,7 @@ spec:
     jwt_secret: "{{ .jwt.value }}"
     encryption_key: "{{ .encryption.private_key_pem }}"
     tls_cert: |
-{{ .tls.private_key_pem | indent 6 }}
+{{ .tls.certificate | indent 6 }}
     tls_key: |
 {{ .tls.private_key_pem | indent 6 }}
   generators:

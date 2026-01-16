@@ -8,8 +8,7 @@ import (
 
 type ChaCha20KeyGenerator struct{}
 
-func (g *ChaCha20KeyGenerator) Generate(config map[string]interface{}) (map[string]string, error) {
-	// ChaCha20 uses 32-byte keys
+func generateChaCha20Key(algorithm string) (map[string]string, error) {
 	key := make([]byte, 32)
 	if _, err := rand.Read(key); err != nil {
 		return nil, err
@@ -19,23 +18,16 @@ func (g *ChaCha20KeyGenerator) Generate(config map[string]interface{}) (map[stri
 		"key_base64": base64.StdEncoding.EncodeToString(key),
 		"key_hex":    hex.EncodeToString(key),
 		"key_size":   "256",
-		"algorithm":  "ChaCha20",
+		"algorithm":  algorithm,
 	}, nil
+}
+
+func (g *ChaCha20KeyGenerator) Generate(config map[string]interface{}) (map[string]string, error) {
+	return generateChaCha20Key("ChaCha20")
 }
 
 type XChaCha20KeyGenerator struct{}
 
 func (g *XChaCha20KeyGenerator) Generate(config map[string]interface{}) (map[string]string, error) {
-	// XChaCha20 uses 32-byte keys
-	key := make([]byte, 32)
-	if _, err := rand.Read(key); err != nil {
-		return nil, err
-	}
-
-	return map[string]string{
-		"key_base64": base64.StdEncoding.EncodeToString(key),
-		"key_hex":    hex.EncodeToString(key),
-		"key_size":   "256",
-		"algorithm":  "XChaCha20",
-	}, nil
+	return generateChaCha20Key("XChaCha20")
 }

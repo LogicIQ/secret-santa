@@ -23,18 +23,33 @@ func TestChaCha20KeyGenerator_Generate(t *testing.T) {
 	}
 
 	// Validate key size
-	if result["key_size"] != "256" {
-		t.Errorf("Generate() key_size = %s, want 256", result["key_size"])
+	keySize, ok := result["key_size"].(string)
+	if !ok {
+		t.Error("key_size is not a string")
+		return
+	}
+	if keySize != "256" {
+		t.Errorf("Generate() key_size = %s, want 256", keySize)
 		return
 	}
 
-	if result["algorithm"] != "ChaCha20" {
-		t.Errorf("Generate() algorithm = %s, want ChaCha20", result["algorithm"])
+	algorithm, ok := result["algorithm"].(string)
+	if !ok {
+		t.Error("algorithm is not a string")
+		return
+	}
+	if algorithm != "ChaCha20" {
+		t.Errorf("Generate() algorithm = %s, want ChaCha20", algorithm)
 		return
 	}
 
 	// Validate base64 key length (32 bytes = 44 base64 chars with padding)
-	decoded, err := base64.StdEncoding.DecodeString(result["key_base64"])
+	keyBase64, ok := result["key_base64"].(string)
+	if !ok {
+		t.Error("key_base64 is not a string")
+		return
+	}
+	decoded, err := base64.StdEncoding.DecodeString(keyBase64)
 	if err != nil {
 		t.Errorf("Generate() invalid base64: %v", err)
 		return
@@ -44,7 +59,12 @@ func TestChaCha20KeyGenerator_Generate(t *testing.T) {
 	}
 
 	// Validate hex key length (32 bytes = 64 hex chars)
-	hexDecoded, err := hex.DecodeString(result["key_hex"])
+	keyHex, ok := result["key_hex"].(string)
+	if !ok {
+		t.Error("key_hex is not a string")
+		return
+	}
+	hexDecoded, err := hex.DecodeString(keyHex)
 	if err != nil {
 		t.Errorf("Generate() invalid hex: %v", err)
 		return
@@ -71,18 +91,33 @@ func TestXChaCha20KeyGenerator_Generate(t *testing.T) {
 	}
 
 	// Validate key size
-	if result["key_size"] != "256" {
-		t.Errorf("Generate() key_size = %s, want 256", result["key_size"])
+	keySize, ok := result["key_size"].(string)
+	if !ok {
+		t.Error("key_size is not a string")
+		return
+	}
+	if keySize != "256" {
+		t.Errorf("Generate() key_size = %s, want 256", keySize)
 		return
 	}
 
-	if result["algorithm"] != "XChaCha20" {
-		t.Errorf("Generate() algorithm = %s, want XChaCha20", result["algorithm"])
+	algorithm, ok := result["algorithm"].(string)
+	if !ok {
+		t.Error("algorithm is not a string")
+		return
+	}
+	if algorithm != "XChaCha20" {
+		t.Errorf("Generate() algorithm = %s, want XChaCha20", algorithm)
 		return
 	}
 
 	// Validate base64 key length (32 bytes)
-	decoded, err := base64.StdEncoding.DecodeString(result["key_base64"])
+	keyBase64, ok := result["key_base64"].(string)
+	if !ok {
+		t.Error("key_base64 is not a string")
+		return
+	}
+	decoded, err := base64.StdEncoding.DecodeString(keyBase64)
 	if err != nil {
 		t.Errorf("Generate() invalid base64: %v", err)
 		return
@@ -92,7 +127,12 @@ func TestXChaCha20KeyGenerator_Generate(t *testing.T) {
 	}
 
 	// Validate hex key length (32 bytes)
-	hexDecoded, err := hex.DecodeString(result["key_hex"])
+	keyHex, ok := result["key_hex"].(string)
+	if !ok {
+		t.Error("key_hex is not a string")
+		return
+	}
+	hexDecoded, err := hex.DecodeString(keyHex)
 	if err != nil {
 		t.Errorf("Generate() invalid hex: %v", err)
 		return

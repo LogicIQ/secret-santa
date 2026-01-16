@@ -12,8 +12,8 @@ type PasswordGenerator struct{}
 
 func (g *PasswordGenerator) Generate(config map[string]interface{}) (map[string]string, error) {
 	length := getIntConfig(config, "length", 16)
-	if length <= 0 {
-		return nil, fmt.Errorf("password length must be positive, got %d", length)
+	if length <= 0 || length > 1000000 {
+		return nil, fmt.Errorf("password length must be between 1 and 1000000, got %d", length)
 	}
 	lower := getBoolConfig(config, "lower", true)
 	upper := getBoolConfig(config, "upper", true)

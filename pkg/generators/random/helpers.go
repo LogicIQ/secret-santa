@@ -23,10 +23,10 @@ func getBoolConfig(config map[string]interface{}, key string, defaultValue bool)
 
 func getStringSliceConfig(config map[string]interface{}, key string) []string {
 	if val, ok := config[key].([]interface{}); ok {
-		result := make([]string, len(val))
-		for i, v := range val {
+		result := make([]string, 0, len(val))
+		for _, v := range val {
 			if str, ok := v.(string); ok {
-				result[i] = str
+				result = append(result, str)
 			}
 		}
 		return result
