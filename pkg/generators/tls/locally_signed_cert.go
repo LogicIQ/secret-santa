@@ -28,7 +28,12 @@ func (g *LocallySignedCertGenerator) Generate(config map[string]interface{}) (ma
 
 	csr, err := x509.ParseCertificateRequest(csrBlock.Bytes)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to parse certificate request: %w", err)
+	}
+
+	// Validate CSR signature
+	if err := csr.CheckSignature(); err != nil {
+		return nil, fmt.Errorf("invalid CSR signature: %w", err)
 	}
 
 	// Parse CA private key
@@ -47,7 +52,12 @@ func (g *LocallySignedCertGenerator) Generate(config map[string]interface{}) (ma
 
 	caPrivateKey, err := x509.ParsePKCS8PrivateKey(caKeyBlock.Bytes)
 	if err != nil {
-		return nil, err
+		// Try parsing as PKCS1 RSA key if PKCS8 fails
+		rsaKey, rsaErr := x509.ParsePKCS1PrivateKey(caKeyBlock.Bytes)
+		if rsaErr != nil {
+			return nil, fmt.Errorf("failed to parse CA private key: %w", err)
+		}
+		caPrivateKey = rsaKey
 	}
 
 	// Parse CA certificate
@@ -69,14 +79,19 @@ func (g *LocallySignedCertGenerator) Generate(config map[string]interface{}) (ma
 		return nil, err
 	}
 
+	// Validate CA private key matches CA certificate
+	if !publicKeysMatch(caPrivateKey, caCert.PublicKey) {
+		return nil, fmt.Errorf("CA private key does not match CA certificate public key")
+	}
+
 	// Create certificate template from CSR
 	validityHours := getIntConfig(config, "validity_period_hours", 8760) // 1 year default
 	if validityHours <= 0 {
 		return nil, fmt.Errorf("validity_period_hours must be positive, got %d", validityHours)
 	}
-	serialNumber := big.NewInt(time.Now().Unix())
-	if serialNumber.Cmp(big.NewInt(0)) <= 0 {
-		return nil, fmt.Errorf("failed to generate valid serial number")
+	serialNumber, err := rand.Int(rand.Reader, new(big.Int).Lsh(big.NewInt(1), 128))
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate serial number: %w", err)
 	}
 	template := x509.Certificate{
 		SerialNumber:          serialNumber,

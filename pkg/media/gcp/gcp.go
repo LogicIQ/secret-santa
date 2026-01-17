@@ -85,7 +85,17 @@ func (m *GCPSecretManagerMedia) Store(ctx context.Context, secretSanta *secretsa
 
 	_, err = client.CreateSecret(ctx, createReq)
 	if err != nil {
-		if st, ok := status.FromError(err); !ok || st.Code() != codes.AlreadyExists {
+		if st, ok := status.FromError(err); ok && st.Code() == codes.AlreadyExists {
+			// Secret already exists, check if it has versions (create-once policy)
+			listReq := &secretmanagerpb.ListSecretVersionsRequest{
+				Parent: secretPath,
+			}
+			versions := client.ListSecretVersions(ctx, listReq)
+			if _, vErr := versions.Next(); vErr == nil {
+				// Secret already has versions, skip adding new version (create-once)
+				return nil
+			}
+		} else {
 			return fmt.Errorf("failed to create secret: %w", err)
 		}
 	}

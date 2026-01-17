@@ -87,7 +87,7 @@ spec:
   template: |
     {
       "password": "{{ .valid_gen.value }}",
-      "malformed": "{{ .missing_closing_brace }}"
+      "invalid": "{{ .invalid_gen.value }}"
     }
   generators:
     - name: valid_gen

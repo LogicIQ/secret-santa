@@ -39,9 +39,9 @@ func TestIntegerGenerator_Generate(t *testing.T) {
 				return
 			}
 
-			valStr, ok := result["value"]
-			if !ok {
-				t.Fatal("Generate() missing value key")
+			valStr := result["value"]
+			if valStr == "" {
+				t.Fatal("Generate() value is missing")
 			}
 
 			val, err := strconv.Atoi(valStr)

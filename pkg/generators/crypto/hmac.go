@@ -30,6 +30,9 @@ func (g *HMACGenerator) Generate(config map[string]interface{}) (map[string]stri
 		}
 		return -1
 	}, algorithm)
+	if algorithm == "" {
+		return nil, fmt.Errorf("algorithm contains invalid characters")
+	}
 
 	if keySize <= 0 {
 		return nil, fmt.Errorf("key_size must be positive, got: %d", keySize)

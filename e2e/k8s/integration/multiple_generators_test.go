@@ -10,14 +10,11 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
 )
-
-
 
 func TestMultipleGenerators(t *testing.T) {
 	cfg, err := config.GetConfig()
@@ -92,14 +89,15 @@ port_hex: {{ .Port.value | toHex }}`,
 		t.Fatalf("Failed to create SecretSanta: %v", err)
 	}
 	defer func() {
-		if err := dynClient.Resource(secretSantaGVR).Namespace(namespace).Delete(context.TODO(), name, metav1.DeleteOptions{}); err != nil {
-			t.Logf("Failed to delete SecretSanta: %v", err)
+		delErr := dynClient.Resource(secretSantaGVR).Namespace(namespace).Delete(context.TODO(), name, metav1.DeleteOptions{})
+		if delErr != nil {
+			t.Logf("Failed to delete SecretSanta: %v", delErr)
 		}
 	}()
 
 	err = wait.PollImmediate(2*time.Second, 60*time.Second, func() (bool, error) {
-		_, err := client.CoreV1().Secrets(namespace).Get(context.TODO(), name, metav1.GetOptions{})
-		if err != nil {
+		_, getErr := client.CoreV1().Secrets(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+		if getErr != nil {
 			return false, nil // Continue polling
 		}
 		return true, nil // Secret found

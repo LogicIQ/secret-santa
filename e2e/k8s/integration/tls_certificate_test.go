@@ -77,7 +77,11 @@ tls.crt: {{ .TLSCert.cert_pem }}`,
 	if err != nil {
 		t.Fatalf("Failed to create SecretSanta: %v", err)
 	}
-	defer dynClient.Resource(secretSantaGVR).Namespace(namespace).Delete(context.TODO(), name, metav1.DeleteOptions{})
+	defer func() {
+		if delErr := dynClient.Resource(secretSantaGVR).Namespace(namespace).Delete(context.TODO(), name, metav1.DeleteOptions{}); delErr != nil {
+			t.Logf("Failed to delete SecretSanta: %v", delErr)
+		}
+	}()
 
 	err = wait.PollImmediate(2*time.Second, 60*time.Second, func() (bool, error) {
 		_, err := client.CoreV1().Secrets(namespace).Get(context.TODO(), name, metav1.GetOptions{})

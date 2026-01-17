@@ -8,6 +8,9 @@ type Generator interface {
 }
 
 func getStringConfig(config map[string]interface{}, key, defaultValue string) string {
+	if config == nil {
+		return defaultValue
+	}
 	if val, ok := config[key].(string); ok {
 		return val
 	}
@@ -21,6 +24,9 @@ func GetStringConfig(config map[string]interface{}, key, defaultValue string) st
 
 // getNormalizedStringConfig gets a string config value and normalizes it to lowercase
 func getNormalizedStringConfig(config map[string]interface{}, key, defaultValue string) string {
+	if config == nil {
+		return strings.ToLower(defaultValue)
+	}
 	if val, ok := config[key].(string); ok {
 		return strings.ToLower(strings.TrimSpace(val))
 	}
@@ -28,6 +34,9 @@ func getNormalizedStringConfig(config map[string]interface{}, key, defaultValue 
 }
 
 func getIntConfig(config map[string]interface{}, key string, defaultValue int) int {
+	if config == nil {
+		return defaultValue
+	}
 	switch val := config[key].(type) {
 	case int:
 		return val
@@ -43,6 +52,9 @@ func GetIntConfig(config map[string]interface{}, key string, defaultValue int) i
 }
 
 func getBoolConfig(config map[string]interface{}, key string, defaultValue bool) bool {
+	if config == nil {
+		return defaultValue
+	}
 	if val, ok := config[key].(bool); ok {
 		return val
 	}

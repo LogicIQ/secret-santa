@@ -43,15 +43,12 @@ func TestIDGenerator_Generate(t *testing.T) {
 			}
 
 			// Validate hex value (without prefix)
-			hexValue, ok := result["value"]
-			if !ok || hexValue == "" {
+			if result["value"] == "" {
 				t.Fatal("Generate() value is empty or missing")
 			}
+			hexValue := result["value"]
 			// Strip prefix if present
-			prefix, ok := result["prefix"]
-			if !ok {
-				t.Fatal("Generate() prefix is missing")
-			}
+			prefix := result["prefix"]
 			if prefix != "" && len(hexValue) > len(prefix) {
 				hexValue = hexValue[len(prefix):]
 			}

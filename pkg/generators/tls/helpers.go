@@ -52,3 +52,19 @@ func getKeyAlgorithm(privateKey interface{}) string {
 		return KeyAlgorithmUnknown
 	}
 }
+
+func publicKeysMatch(privateKey, publicKey interface{}) bool {
+	switch priv := privateKey.(type) {
+	case *rsa.PrivateKey:
+		pub, ok := publicKey.(*rsa.PublicKey)
+		return ok && priv.PublicKey.N.Cmp(pub.N) == 0 && priv.PublicKey.E == pub.E
+	case *ecdsa.PrivateKey:
+		pub, ok := publicKey.(*ecdsa.PublicKey)
+		return ok && priv.PublicKey.X.Cmp(pub.X) == 0 && priv.PublicKey.Y.Cmp(pub.Y) == 0
+	case ed25519.PrivateKey:
+		pub, ok := publicKey.(ed25519.PublicKey)
+		return ok && priv.Public().(ed25519.PublicKey).Equal(pub)
+	default:
+		return false
+	}
+}
