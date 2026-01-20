@@ -80,11 +80,13 @@ func setupLogger() {
 	dryRun := viper.GetBool("dry-run")
 
 	if logFormat != "json" && logFormat != "console" {
+		setupLog.Info("Invalid log format, defaulting to json", "provided", logFormat)
 		logFormat = "json"
 	}
 
 	validLevels := map[string]bool{"debug": true, "info": true, "warn": true, "error": true}
 	if !validLevels[logLevel] {
+		setupLog.Info("Invalid log level, defaulting to info", "provided", logLevel)
 		logLevel = "info"
 	}
 

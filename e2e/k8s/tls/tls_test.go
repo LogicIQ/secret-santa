@@ -28,7 +28,7 @@ var (
 	}
 )
 
-func TestTLSCertificateGenerator(t *testing.T) {
+func setupClients(t *testing.T) (kubernetes.Interface, dynamic.Interface) {
 	cfg, err := config.GetConfig()
 	if err != nil {
 		t.Fatalf("Failed to get config: %v", err)
@@ -43,6 +43,12 @@ func TestTLSCertificateGenerator(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create dynamic client: %v", err)
 	}
+
+	return client, dynClient
+}
+
+func TestTLSCertificateGenerator(t *testing.T) {
+	client, dynClient := setupClients(t)
 
 	namespace := "default"
 	name := "test-tls-cert"
@@ -154,20 +160,7 @@ tls.key: {{ .PrivateKey.private_key_pem | b64enc }}`,
 }
 
 func TestTLSPrivateKeyOnly(t *testing.T) {
-	cfg, err := config.GetConfig()
-	if err != nil {
-		t.Fatalf("Failed to get config: %v", err)
-	}
-
-	client, err := kubernetes.NewForConfig(cfg)
-	if err != nil {
-		t.Fatalf("Failed to create client: %v", err)
-	}
-
-	dynClient, err := dynamic.NewForConfig(cfg)
-	if err != nil {
-		t.Fatalf("Failed to create dynamic client: %v", err)
-	}
+	client, dynClient := setupClients(t)
 
 	namespace := "default"
 	name := "e2e-tls-private-key-test"
@@ -227,20 +220,7 @@ public_key: {{ .PrivateKey.public_key_pem }}`,
 }
 
 func TestTLSSelfSignedCertOnly(t *testing.T) {
-	cfg, err := config.GetConfig()
-	if err != nil {
-		t.Fatalf("Failed to get config: %v", err)
-	}
-
-	client, err := kubernetes.NewForConfig(cfg)
-	if err != nil {
-		t.Fatalf("Failed to create client: %v", err)
-	}
-
-	dynClient, err := dynamic.NewForConfig(cfg)
-	if err != nil {
-		t.Fatalf("Failed to create dynamic client: %v", err)
-	}
+	client, dynClient := setupClients(t)
 
 	namespace := "default"
 	name := "e2e-tls-self-signed-cert-test"
@@ -304,20 +284,7 @@ validity_start: {{ .SelfSignedCert.validity_start_time }}`,
 }
 
 func TestAllTLSGenerators(t *testing.T) {
-	cfg, err := config.GetConfig()
-	if err != nil {
-		t.Fatalf("Failed to get config: %v", err)
-	}
-
-	client, err := kubernetes.NewForConfig(cfg)
-	if err != nil {
-		t.Fatalf("Failed to create client: %v", err)
-	}
-
-	dynClient, err := dynamic.NewForConfig(cfg)
-	if err != nil {
-		t.Fatalf("Failed to create dynamic client: %v", err)
-	}
+	client, dynClient := setupClients(t)
 
 	namespace := "default"
 	name := "e2e-all-tls-test"

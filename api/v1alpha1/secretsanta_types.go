@@ -34,6 +34,10 @@ type GeneratorConfig struct {
 	// +kubebuilder:validation:MinLength=1
 	Name string `json:"name"`
 	// Type specifies the generator type (e.g., random_password, tls_private_key)
+	// Supported types: random_password, random_string, random_uuid, random_bytes,
+	// random_integer, random_id, tls_private_key, tls_self_signed_cert,
+	// tls_cert_request, tls_locally_signed_cert, crypto_aes_key, crypto_rsa_key,
+	// crypto_ed25519_key, crypto_hmac
 	// +kubebuilder:validation:MinLength=1
 	// +kubebuilder:validation:Enum=random_password;random_string;random_uuid;random_bytes;random_integer;random_id;tls_private_key;tls_self_signed_cert;tls_cert_request;tls_locally_signed_cert;crypto_aes_key;crypto_rsa_key;crypto_ed25519_key;crypto_hmac
 	Type string `json:"type"`

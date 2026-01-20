@@ -1,13 +1,19 @@
 version: '3'
 
 tasks:
-  test:
-    desc: Run e2e tests only
+  deps:
+    desc: Ensure dependencies are up to date
     cmds:
       - go mod tidy
+
+  test:
+    desc: Run e2e tests only
+    deps:
+      - deps
+    cmds:
       - go test -v ./... -tags=e2e
 
   cleanup:
     desc: Cleanup e2e environment
     cmds:
-      - kind delete cluster --name=secret-santa-e2e || echo "Cluster doesn't exist"
+      - kind delete cluster --name=secret-santa-e2e || true

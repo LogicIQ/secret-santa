@@ -1,6 +1,9 @@
 package crypto
 
 func getStringConfig(config map[string]interface{}, key, defaultValue string) string {
+	if config == nil {
+		return defaultValue
+	}
 	if val, ok := config[key].(string); ok {
 		return val
 	}
@@ -8,6 +11,9 @@ func getStringConfig(config map[string]interface{}, key, defaultValue string) st
 }
 
 func getIntConfig(config map[string]interface{}, key string, defaultValue int) int {
+	if config == nil {
+		return defaultValue
+	}
 	switch val := config[key].(type) {
 	case int:
 		return val

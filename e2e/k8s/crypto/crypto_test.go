@@ -26,7 +26,7 @@ var (
 	}
 )
 
-func TestCryptoGenerators(t *testing.T) {
+func setupClients(t *testing.T) (kubernetes.Interface, dynamic.Interface) {
 	cfg, err := config.GetConfig()
 	if err != nil {
 		t.Fatalf("Failed to get config: %v", err)
@@ -41,6 +41,12 @@ func TestCryptoGenerators(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create dynamic client: %v", err)
 	}
+
+	return client, dynClient
+}
+
+func TestCryptoGenerators(t *testing.T) {
+	client, dynClient := setupClients(t)
 
 	namespace := "default"
 	name := "test-crypto-keys"
@@ -124,20 +130,7 @@ hmac_signature: {{ .HMAC.signature_hex }}`,
 }
 
 func TestAllCryptoGenerators(t *testing.T) {
-	cfg, err := config.GetConfig()
-	if err != nil {
-		t.Fatalf("Failed to get config: %v", err)
-	}
-
-	client, err := kubernetes.NewForConfig(cfg)
-	if err != nil {
-		t.Fatalf("Failed to create client: %v", err)
-	}
-
-	dynClient, err := dynamic.NewForConfig(cfg)
-	if err != nil {
-		t.Fatalf("Failed to create dynamic client: %v", err)
-	}
+	client, dynClient := setupClients(t)
 
 	namespace := "default"
 	name := "e2e-all-crypto-test"

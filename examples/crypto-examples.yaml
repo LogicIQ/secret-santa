@@ -41,10 +41,10 @@ metadata:
   namespace: default
 spec:
   template: |
-    rsa_private_key: {{ .RSAKey.private_key_pem | b64enc }}
-    rsa_public_key: {{ .RSAKey.public_key_pem | b64enc }}
-    ed25519_private_key: {{ .ED25519Key.private_key_pem | b64enc }}
-    ed25519_public_key: {{ .ED25519Key.public_key_pem | b64enc }}
+    rsa_private_key: {{ .RSAKey.private_key_pem }}
+    rsa_public_key: {{ .RSAKey.public_key_pem }}
+    ed25519_private_key: {{ .ED25519Key.private_key_pem }}
+    ed25519_public_key: {{ .ED25519Key.public_key_pem }}
   generators:
     - name: RSAKey
       type: crypto_rsa_key

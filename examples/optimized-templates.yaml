@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=https://json.schemastore.org/kustomization.json
 apiVersion: secrets.secret-santa.io/v1alpha1
 kind: SecretSanta
 metadata:
@@ -31,7 +32,7 @@ spec:
     
     # Bytes with multiple formats
     secret: {{ .Secret.value }}
-    secret_raw: {{ .Secret.value | b64dec | urlSafeB64 }}
+    secret_hex: {{ .Secret.hex }}
     secret_hash: {{ .Secret.value | b64dec | sha256 }}
     secret_checksum: {{ .Secret.value | b64dec | crc32 }}
     

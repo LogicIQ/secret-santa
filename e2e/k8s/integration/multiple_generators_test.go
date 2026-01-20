@@ -10,11 +10,18 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
 )
+
+var secretSantaGVR = schema.GroupVersionResource{
+	Group:    "secrets.secret-santa.io",
+	Version:  "v1alpha1",
+	Resource: "secretsantas",
+}
 
 func TestMultipleGenerators(t *testing.T) {
 	cfg, err := config.GetConfig()
@@ -98,11 +105,24 @@ port_hex: {{ .Port.value | toHex }}`,
 	err = wait.PollImmediate(2*time.Second, 60*time.Second, func() (bool, error) {
 		_, getErr := client.CoreV1().Secrets(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 		if getErr != nil {
-			return false, nil // Continue polling
+			return false, nil
 		}
-		return true, nil // Secret found
+		return true, nil
 	})
 	if err != nil {
+		// Check if SecretSanta has error condition
+		ss, getErr := dynClient.Resource(secretSantaGVR).Namespace(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+		if getErr == nil {
+			if conditions, found, _ := unstructured.NestedSlice(ss.Object, "status", "conditions"); found {
+				for _, cond := range conditions {
+					if condMap, ok := cond.(map[string]interface{}); ok {
+						if condMap["type"] == "Ready" && condMap["status"] == "False" {
+							t.Logf("SecretSanta error: %v", condMap["message"])
+						}
+					}
+				}
+			}
+		}
 		t.Fatalf("Timeout waiting for secret to be created: %v", err)
 	}
 
