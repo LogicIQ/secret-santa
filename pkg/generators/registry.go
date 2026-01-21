@@ -10,9 +10,13 @@ type Registry struct {
 	generators map[string]Generator
 }
 
-var globalRegistry = &Registry{
-	generators: make(map[string]Generator),
+func NewRegistry() *Registry {
+	return &Registry{
+		generators: make(map[string]Generator),
+	}
 }
+
+var globalRegistry = NewRegistry()
 
 func Register(generatorType string, generator Generator) error {
 	globalRegistry.mu.Lock()

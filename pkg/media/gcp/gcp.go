@@ -24,6 +24,10 @@ type GCPSecretManagerMedia struct {
 }
 
 func (m *GCPSecretManagerMedia) Store(ctx context.Context, secretSanta *secretsantav1alpha1.SecretSanta, data string, enableMetadata bool) error {
+	if m.ProjectID == "" {
+		return fmt.Errorf("GCP project ID is required")
+	}
+
 	var opts []option.ClientOption
 
 	// Use credentials file if provided, otherwise rely on workload identity/default credentials
@@ -40,9 +44,9 @@ func (m *GCPSecretManagerMedia) Store(ctx context.Context, secretSanta *secretsa
 	secretName := m.SecretName
 	if secretName == "" {
 		secretName = secretSanta.Spec.SecretName
-		if secretName == "" {
-			secretName = secretSanta.Name
-		}
+	}
+	if secretName == "" {
+		secretName = secretSanta.Name
 	}
 
 	// Create secret name with namespace prefix

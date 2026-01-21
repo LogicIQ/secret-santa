@@ -9,6 +9,16 @@ import (
 	secretsantav1alpha1 "github.com/logicIQ/secret-santa/api/v1alpha1"
 )
 
+func resolveName(mediaName, specSecretName, metaName string) string {
+	if mediaName != "" {
+		return mediaName
+	}
+	if specSecretName != "" {
+		return specSecretName
+	}
+	return metaName
+}
+
 func TestAWSSecretsManagerMedia_GetType(t *testing.T) {
 	media := &AWSSecretsManagerMedia{}
 	assert.Equal(t, "aws-secrets-manager", media.GetType())
@@ -66,15 +76,7 @@ func TestAWSSecretsManagerMedia_SecretNameResolution(t *testing.T) {
 				},
 			}
 
-			// Test name resolution logic
-			secretName := media.SecretName
-			if secretName == "" {
-				secretName = secretSanta.Spec.SecretName
-				if secretName == "" {
-					secretName = secretSanta.Name
-				}
-			}
-
+			secretName := resolveName(media.SecretName, secretSanta.Spec.SecretName, secretSanta.Name)
 			assert.Equal(t, tt.expectedName, secretName)
 		})
 	}
@@ -127,15 +129,7 @@ func TestAWSParameterStoreMedia_ParameterNameResolution(t *testing.T) {
 				},
 			}
 
-			// Test name resolution logic
-			paramName := media.ParameterName
-			if paramName == "" {
-				paramName = secretSanta.Spec.SecretName
-				if paramName == "" {
-					paramName = secretSanta.Name
-				}
-			}
-
+			paramName := resolveName(media.ParameterName, secretSanta.Spec.SecretName, secretSanta.Name)
 			assert.Equal(t, tt.expectedName, paramName)
 		})
 	}
@@ -167,34 +161,52 @@ func TestAWSMedia_ConfigFields(t *testing.T) {
 	})
 }
 
-func TestAWSSecretsManagerMedia_getGeneratorTypes(t *testing.T) {
-	generators := []secretsantav1alpha1.GeneratorConfig{
-		{Type: "random_password"},
-		{Type: "crypto_aes_key"},
+func Test_getGeneratorTypes(t *testing.T) {
+	tests := []struct {
+		name       string
+		generators []secretsantav1alpha1.GeneratorConfig
+		expected   string
+	}{
+		{
+			name: "random and crypto generators",
+			generators: []secretsantav1alpha1.GeneratorConfig{
+				{Type: "random_password"},
+				{Type: "crypto_aes_key"},
+			},
+			expected: "random_password,crypto_aes_key",
+		},
+		{
+			name: "tls and random generators",
+			generators: []secretsantav1alpha1.GeneratorConfig{
+				{Type: "tls_private_key"},
+				{Type: "random_uuid"},
+			},
+			expected: "tls_private_key,random_uuid",
+		},
 	}
-	result := getGeneratorTypes(generators)
-	assert.Equal(t, "random_password,crypto_aes_key", result)
-}
 
-func TestAWSSecretsManagerMedia_calculateTemplateChecksum(t *testing.T) {
-	template := "password: {{ .pass.password }}"
-	checksum := calculateTemplateChecksum(template)
-	assert.Len(t, checksum, 16)
-	assert.Equal(t, checksum, calculateTemplateChecksum(template))
-}
-
-func TestAWSParameterStoreMedia_getGeneratorTypes(t *testing.T) {
-	generators := []secretsantav1alpha1.GeneratorConfig{
-		{Type: "tls_private_key"},
-		{Type: "random_uuid"},
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := getGeneratorTypes(tt.generators)
+			assert.Equal(t, tt.expected, result)
+		})
 	}
-	result := getGeneratorTypes(generators)
-	assert.Equal(t, "tls_private_key,random_uuid", result)
 }
 
-func TestAWSParameterStoreMedia_calculateTemplateChecksum(t *testing.T) {
-	template := "api_key: {{ .key.value }}"
-	checksum := calculateTemplateChecksum(template)
-	assert.Len(t, checksum, 16)
-	assert.Equal(t, checksum, calculateTemplateChecksum(template))
+func Test_calculateTemplateChecksum(t *testing.T) {
+	tests := []struct {
+		name     string
+		template string
+	}{
+		{"password template", "password: {{ .pass.password }}"},
+		{"api key template", "api_key: {{ .key.value }}"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			checksum := calculateTemplateChecksum(tt.template)
+			assert.Len(t, checksum, 16)
+			assert.Equal(t, checksum, calculateTemplateChecksum(tt.template))
+		})
+	}
 }

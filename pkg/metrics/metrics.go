@@ -23,7 +23,7 @@ var (
 			Name:      "success_generation_total",
 			Help:      "Successful secret generations",
 		},
-		[]string{"resource_name", "resource_namespace"},
+		[]string{"secretsanta", "namespace"},
 	)
 
 	FailedGenerationTotal = prometheus.NewCounterVec(
@@ -215,7 +215,6 @@ func RecordReconcileComplete(name, namespace string, duration float64) {
 
 func RecordReconcileError(name, namespace, reason string) {
 	SyncErrorCount.WithLabelValues(name, namespace).Inc()
-	FailedGenerationTotal.WithLabelValues(name, namespace, reason).Inc()
 }
 
 func RecordTemplateValidationError(resourceName, resourceNamespace string) {
@@ -234,6 +233,7 @@ func UpdateSecretInstances(name, namespace string, instanceCount float64) {
 var (
 	SyncCallCount = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
+			Namespace: Namespace,
 			Subsystem: SecretSantaSubsystem,
 			Name:      "controller_sync_call_count",
 			Help:      "The number of reconciliation loops made by a controller",
@@ -243,6 +243,7 @@ var (
 
 	SyncErrorCount = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
+			Namespace: Namespace,
 			Subsystem: SecretSantaSubsystem,
 			Name:      "controller_sync_error_count",
 			Help:      "The number of failed reconciliation loops",
@@ -252,6 +253,7 @@ var (
 
 	LastReconcileDuration = prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
+			Namespace: Namespace,
 			Subsystem: SecretSantaSubsystem,
 			Name:      "controller_last_reconcile_duration_seconds",
 			Help:      "Duration of the last reconcile operation",
@@ -261,6 +263,7 @@ var (
 
 	ReconcileActive = prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
+			Namespace: Namespace,
 			Subsystem: SecretSantaSubsystem,
 			Name:      "controller_reconcile_active",
 			Help:      "Shows if Reconcile loop is running",
@@ -270,6 +273,7 @@ var (
 
 	SecretInstances = prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
+			Namespace: Namespace,
 			Subsystem: SecretSantaSubsystem,
 			Name:      "controller_secrets_instances",
 			Help:      "The number of desired secret instances",

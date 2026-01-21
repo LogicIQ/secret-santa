@@ -55,10 +55,6 @@ func (g *PasswordGenerator) Generate(config map[string]interface{}) (map[string]
 		password[i] = charsetStr[n.Int64()]
 	}
 
-	if len(password) != length {
-		return nil, fmt.Errorf("generated password length mismatch: expected %d, got %d", length, len(password))
-	}
-
 	passwordStr := string(password)
 	if len(passwordStr) == 0 {
 		return nil, fmt.Errorf("generated password is empty")

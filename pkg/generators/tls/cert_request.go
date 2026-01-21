@@ -27,6 +27,9 @@ func (g *CertRequestGenerator) Generate(config map[string]interface{}) (map[stri
 		// Try PKCS1 for RSA keys
 		if rsaKey, rsaErr := x509.ParsePKCS1PrivateKey(block.Bytes); rsaErr == nil {
 			privateKey = rsaKey
+		} else if ecKey, ecErr := x509.ParseECPrivateKey(block.Bytes); ecErr == nil {
+			// Try SEC1 for EC keys
+			privateKey = ecKey
 		} else {
 			return nil, err
 		}

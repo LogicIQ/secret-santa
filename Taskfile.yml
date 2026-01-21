@@ -15,15 +15,7 @@ tasks:
   go:test:controller:
     desc: Run controller tests individually to avoid metrics conflicts
     cmds:
-      - go test -v ./internal/controller/... -run TestSecretSantaReconciler_executeTemplate
-      - go test -v ./internal/controller/... -run TestSecretSantaReconciler_validateTemplate
-      - go test -v ./internal/controller/... -run TestSecretSantaReconciler_shouldProcess
-      - go test -v ./internal/controller/... -run TestSecretSantaReconciler_validateGeneratorConfig
-      - go test -v ./internal/controller/... -run TestSecretSantaReconciler_generateTemplateData
-      - go test -v ./internal/controller/... -run TestGetMapKeys
-      - go test -v ./internal/controller/... -run TestSecretSantaReconciler_handleDeletion
-      - go test -v ./internal/controller/... -run TestSecretSantaReconciler_createOrUpdateSecret
-      - go test -v ./internal/controller/... -run TestSecretSantaReconciler_updateStatus
+      - go test -v ./internal/controller/... -run "TestSecretSantaReconciler_executeTemplate|TestSecretSantaReconciler_validateTemplate|TestSecretSantaReconciler_shouldProcess|TestSecretSantaReconciler_validateGeneratorConfig|TestSecretSantaReconciler_generateTemplateData|TestGetMapKeys|TestSecretSantaReconciler_handleDeletion|TestSecretSantaReconciler_createOrUpdateSecret|TestSecretSantaReconciler_updateStatus"
 
   go:test:all:
     desc: Run all tests including controller tests individually

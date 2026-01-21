@@ -158,7 +158,7 @@ func (g *PrivateKeyGenerator) generateED25519(config map[string]interface{}) (ma
 	if err != nil {
 		return nil, err
 	}
-	publicKeyPEMBytes := pem.EncodeToMemory(&pem.Block{
+	publicKeyPEM := pem.EncodeToMemory(&pem.Block{
 		Type:  "PUBLIC KEY",
 		Bytes: publicKeyBytes,
 	})
@@ -171,7 +171,7 @@ func (g *PrivateKeyGenerator) generateED25519(config map[string]interface{}) (ma
 
 	return map[string]string{
 		"private_key_pem":               string(privateKeyPEM),
-		"public_key_pem":                string(publicKeyPEMBytes),
+		"public_key_pem":                string(publicKeyPEM),
 		"public_key_openssh":            string(ssh.MarshalAuthorizedKey(sshPublicKey)),
 		"public_key_fingerprint_md5":    ssh.FingerprintLegacyMD5(sshPublicKey),
 		"public_key_fingerprint_sha256": ssh.FingerprintSHA256(sshPublicKey),
