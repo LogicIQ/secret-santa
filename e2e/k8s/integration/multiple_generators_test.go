@@ -113,7 +113,7 @@ port_hex: {{ .Port.value | toHex }}`,
 		// Check if SecretSanta has error condition
 		ss, getErr := dynClient.Resource(secretSantaGVR).Namespace(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 		if getErr == nil {
-			if conditions, found, _ := unstructured.NestedSlice(ss.Object, "status", "conditions"); found {
+			if conditions, found, nestedErr := unstructured.NestedSlice(ss.Object, "status", "conditions"); found && nestedErr == nil {
 				for _, cond := range conditions {
 					if condMap, ok := cond.(map[string]interface{}); ok {
 						if condMap["type"] == "Ready" && condMap["status"] == "False" {

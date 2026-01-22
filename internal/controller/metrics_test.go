@@ -11,5 +11,6 @@ import (
 func TestMain(m *testing.M) {
 	// Use a separate registry for tests to avoid conflicts
 	metrics.Registry = prometheus.NewRegistry()
-	os.Exit(m.Run())
+	code := m.Run()
+	os.Exit(code)
 }

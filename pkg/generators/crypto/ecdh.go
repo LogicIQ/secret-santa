@@ -59,8 +59,8 @@ func (g *ECDHKeyGenerator) Generate(config map[string]interface{}) (map[string]s
 	return map[string]string{
 		"private_key_pem":    string(privateKeyPEM),
 		"public_key_pem":     string(publicKeyPEM),
-		"private_key_base64": base64.StdEncoding.EncodeToString(privateKeyPEM),
-		"public_key_base64":  base64.StdEncoding.EncodeToString(publicKeyPEM),
+		"private_key_base64": base64.StdEncoding.EncodeToString(privateKey.Bytes()),
+		"public_key_base64":  base64.StdEncoding.EncodeToString(publicKey.Bytes()),
 		"curve":              curve,
 		"algorithm":          "ECDH",
 	}, nil

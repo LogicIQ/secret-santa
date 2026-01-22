@@ -26,10 +26,10 @@ metadata:
   namespace: default
 spec:
   template: |
-    ecdsa_private: {{ .ECDSA.private_key_pem | b64enc }}
-    ecdsa_public: {{ .ECDSA.public_key_pem | b64enc }}
-    ecdh_private: {{ .ECDH.private_key_pem | b64enc }}
-    ecdh_public: {{ .ECDH.public_key_pem | b64enc }}
+    ecdsa_private: {{ .ECDSA.private_key_pem }}
+    ecdsa_public: {{ .ECDSA.public_key_pem }}
+    ecdh_private: {{ .ECDH.private_key_pem }}
+    ecdh_public: {{ .ECDH.public_key_pem }}
     curve_info: {{ .ECDSA.curve }}
   generators:
     - name: ECDSA

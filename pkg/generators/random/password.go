@@ -55,13 +55,8 @@ func (g *PasswordGenerator) Generate(config map[string]interface{}) (map[string]
 		password[i] = charsetStr[n.Int64()]
 	}
 
-	passwordStr := string(password)
-	if len(passwordStr) == 0 {
-		return nil, fmt.Errorf("generated password is empty")
-	}
-
 	return map[string]string{
-		"value":       passwordStr,
+		"value":       string(password),
 		"charset":     charsetStr,
 		"generatedAt": time.Now().UTC().Format(time.RFC3339),
 		"length":      fmt.Sprintf("%d", length),

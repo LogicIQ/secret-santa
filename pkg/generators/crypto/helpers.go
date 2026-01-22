@@ -1,5 +1,7 @@
 package crypto
 
+import "math"
+
 func getStringConfig(config map[string]interface{}, key, defaultValue string) string {
 	if config == nil {
 		return defaultValue
@@ -18,7 +20,9 @@ func getIntConfig(config map[string]interface{}, key string, defaultValue int) i
 	case int:
 		return val
 	case float64:
-		return int(val)
+		if val >= math.MinInt && val <= math.MaxInt {
+			return int(val)
+		}
 	}
 	return defaultValue
 }

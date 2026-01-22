@@ -11,6 +11,9 @@ import (
 type ED25519KeyGenerator struct{}
 
 func (g *ED25519KeyGenerator) Generate(config map[string]interface{}) (map[string]string, error) {
+	// ED25519 has fixed key size, config parameter reserved for future use
+	_ = config
+
 	// Generate ED25519 key pair
 	publicKey, privateKey, err := ed25519.GenerateKey(rand.Reader)
 	if err != nil {

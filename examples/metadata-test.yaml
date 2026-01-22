@@ -24,7 +24,7 @@ spec:
       config:
         length: 64
         special: false
-  secretType: "Opaque"
+  secretType: Opaque
   labels:
     environment: test
   annotations:

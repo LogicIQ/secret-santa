@@ -27,7 +27,9 @@ func TestRegistry(t *testing.T) {
 
 	t.Run("IsSupported", func(t *testing.T) {
 		Clear()
-		Register("test_generator", mockGen)
+		if err := Register("test_generator", mockGen); err != nil {
+			t.Fatalf("Failed to register test_generator: %v", err)
+		}
 		if !IsSupported("test_generator") {
 			t.Error("Expected test_generator to be supported")
 		}
@@ -38,7 +40,9 @@ func TestRegistry(t *testing.T) {
 
 	t.Run("Get", func(t *testing.T) {
 		Clear()
-		Register("test_generator", mockGen)
+		if err := Register("test_generator", mockGen); err != nil {
+			t.Fatalf("Failed to register test_generator: %v", err)
+		}
 		gen, err := Get("test_generator")
 		if err != nil {
 			t.Errorf("Expected to get test_generator, got error: %v", err)
@@ -54,12 +58,16 @@ func TestRegistry(t *testing.T) {
 
 	t.Run("GetSupportedTypes", func(t *testing.T) {
 		Clear()
-		Register("test_generator", mockGen)
+		if err := Register("test_generator", mockGen); err != nil {
+			t.Fatalf("Failed to register test_generator: %v", err)
+		}
 		types := GetSupportedTypes()
 		if len(types) != 1 || types[0] != "test_generator" {
 			t.Errorf("Expected [test_generator], got %v", types)
 		}
-		Register("another_generator", mockGen)
+		if err := Register("another_generator", mockGen); err != nil {
+			t.Fatalf("Failed to register another_generator: %v", err)
+		}
 		types = GetSupportedTypes()
 		if len(types) != 2 {
 			t.Errorf("Expected 2 generators, got %d", len(types))
@@ -68,7 +76,9 @@ func TestRegistry(t *testing.T) {
 
 	t.Run("Clear", func(t *testing.T) {
 		Clear()
-		Register("test_generator", mockGen)
+		if err := Register("test_generator", mockGen); err != nil {
+			t.Fatalf("Failed to register test_generator: %v", err)
+		}
 		Clear()
 		types := GetSupportedTypes()
 		if len(types) != 0 {

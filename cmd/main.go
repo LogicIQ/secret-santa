@@ -2,6 +2,7 @@ package main
 
 import (
 	"os"
+	"strings"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -103,20 +104,25 @@ func setupLogger() {
 	}
 
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
-	setupLog.Info("Secret Santa starting", "version", version, "gitHash", gitHash)
-	setupLog.Info("Logging configuration", "format", logFormat, "level", logLevel)
+	setupLog.Info("Secret Santa starting", "version", sanitizeLogValue(version), "gitHash", sanitizeLogValue(gitHash))
+	setupLog.Info("Logging configuration", "format", sanitizeLogValue(logFormat), "level", sanitizeLogValue(logLevel))
 	if dryRun {
 		setupLog.Info("Starting in DRY RUN mode - no secrets will be created")
 	}
 }
 
+// sanitizeLogValue removes control characters to prevent log injection
+func sanitizeLogValue(value string) string {
+	return strings.Map(func(r rune) rune {
+		if r < 32 {
+			return -1
+		}
+		return r
+	}, value)
+}
+
 func loadConfig() *config.Config {
-	cfg, err := config.Load()
-	if err != nil {
-		setupLog.Error(err, "unable to load config")
-		os.Exit(1)
-	}
-	return cfg
+	return config.Load()
 }
 
 func createManager(cfg *config.Config) ctrl.Manager {

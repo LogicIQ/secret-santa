@@ -19,6 +19,7 @@ type DryRunResult struct {
 // MediaConfig defines configuration for secret storage destinations
 type MediaConfig struct {
 	// Type specifies the storage backend
+	// Supported types: k8s, aws-secrets-manager, aws-parameter-store, azure-key-vault, gcp-secret-manager
 	// +kubebuilder:validation:MinLength=1
 	// +kubebuilder:validation:Enum=k8s;aws-secrets-manager;aws-parameter-store;azure-key-vault;gcp-secret-manager
 	Type string `json:"type"`

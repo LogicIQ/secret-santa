@@ -67,11 +67,6 @@ func (g *SelfSignedCertGenerator) Generate(config map[string]interface{}) (map[s
 		return nil, fmt.Errorf("failed to encode private key to PEM")
 	}
 
-	// Validate the generated certificate
-	if len(certDER) == 0 {
-		return nil, fmt.Errorf("generated certificate is empty")
-	}
-
 	return map[string]string{
 		"cert_pem":            string(certPEM),
 		"private_key_pem":     string(privateKeyPEM),

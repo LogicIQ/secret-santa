@@ -13,8 +13,8 @@ func TestLoad_Defaults(t *testing.T) {
 	// Reset viper state
 	viper.Reset()
 
-	cfg, err := Load()
-	require.NoError(t, err)
+	cfg := Load()
+	require.NotNil(t, cfg)
 
 	assert.Equal(t, ":8080", cfg.MetricsBindAddress)
 	assert.Equal(t, ":8081", cfg.HealthProbeBindAddress)
@@ -50,20 +50,17 @@ func TestLoad_EnvironmentVariables(t *testing.T) {
 		"SECRET_SANTA_LOG_LEVEL":                 "debug",
 	}
 
-	// Set environment variables
 	for key, value := range envVars {
 		os.Setenv(key, value)
 	}
-
-	// Clean up after test
 	defer func() {
 		for key := range envVars {
 			os.Unsetenv(key)
 		}
 	}()
 
-	cfg, err := Load()
-	require.NoError(t, err)
+	cfg := Load()
+	require.NotNil(t, cfg)
 
 	assert.Equal(t, ":9090", cfg.MetricsBindAddress)
 	assert.Equal(t, ":9091", cfg.HealthProbeBindAddress)
@@ -92,8 +89,8 @@ func TestLoad_ViperSettings(t *testing.T) {
 	viper.Set("log-format", "console")
 	viper.Set("log-level", "warn")
 
-	cfg, err := Load()
-	require.NoError(t, err)
+	cfg := Load()
+	require.NotNil(t, cfg)
 
 	assert.Equal(t, ":7070", cfg.MetricsBindAddress)
 	assert.True(t, cfg.LeaderElection)
@@ -112,8 +109,8 @@ func TestLoad_EnvOverridesDefaults(t *testing.T) {
 	os.Setenv("SECRET_SANTA_MAX_CONCURRENT_RECONCILES", "3")
 	defer os.Unsetenv("SECRET_SANTA_MAX_CONCURRENT_RECONCILES")
 
-	cfg, err := Load()
-	require.NoError(t, err)
+	cfg := Load()
+	require.NotNil(t, cfg)
 
 	// Environment variable should override default
 	assert.Equal(t, 3, cfg.MaxConcurrentReconciles)
@@ -134,8 +131,8 @@ func TestLoad_CommaSeparatedEnvVars(t *testing.T) {
 		os.Unsetenv("SECRET_SANTA_INCLUDE_LABELS")
 	}()
 
-	cfg, err := Load()
-	require.NoError(t, err)
+	cfg := Load()
+	require.NotNil(t, cfg)
 
 	assert.Equal(t, []string{"ns1", "ns2", "ns3"}, cfg.WatchNamespaces)
 	assert.Equal(t, []string{"app=web", "env=prod"}, cfg.IncludeLabels)

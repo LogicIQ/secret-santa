@@ -221,7 +221,7 @@ func RecordTemplateValidationError(resourceName, resourceNamespace string) {
 	TemplateValidationFailedTotal.WithLabelValues(resourceName, resourceNamespace).Inc()
 }
 
-func RecordSecretGenerated(name, namespace, mediaType string) {
+func RecordSecretGenerated(name, namespace string) {
 	SuccessGenerationTotal.WithLabelValues(name, namespace).Inc()
 	SyncCallCount.WithLabelValues(name, namespace).Inc()
 }

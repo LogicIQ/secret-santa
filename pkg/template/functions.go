@@ -65,11 +65,6 @@ func RemoveHyphens(s string) string {
 	return strings.ReplaceAll(s, "-", "")
 }
 
-// Compact is deprecated. Use RemoveHyphens instead.
-func Compact(s string) string {
-	return RemoveHyphens(s)
-}
-
 func ToBinary(i interface{}) string {
 	switch v := i.(type) {
 	case int:

@@ -1,3 +1,4 @@
+# amazonq-ignore-next-line
 apiVersion: secrets.secret-santa.io/v1alpha1
 kind: SecretSanta
 metadata:

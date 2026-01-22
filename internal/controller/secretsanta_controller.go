@@ -193,7 +193,7 @@ func (r *SecretSantaReconciler) storeSecret(ctx context.Context, secretSanta *se
 		return ctrl.Result{}, err
 	}
 
-	RecordSecretGenerated(secretSanta.Name, secretSanta.Namespace, sanitizeLogValue(mediaInstance.GetType()))
+	RecordSecretGenerated(secretSanta.Name, secretSanta.Namespace)
 	UpdateSecretInstances(secretSanta.Name, secretSanta.Namespace, 1)
 	if updateErr := r.updateStatus(ctx, secretSanta, "Ready", "True", "Secret stored successfully"); updateErr != nil {
 		log.Error(updateErr, "Failed to update status")
@@ -213,7 +213,7 @@ func (r *SecretSantaReconciler) createMedia(secretSanta *secretsantav1alpha1.Sec
 	var config map[string]interface{}
 	if secretSanta.Spec.Media.Config != nil && len(secretSanta.Spec.Media.Config.Raw) > 0 {
 		if err := json.Unmarshal(secretSanta.Spec.Media.Config.Raw, &config); err != nil {
-			return nil, fmt.Errorf("failed to unmarshal media config: %w", err)
+			return nil, fmt.Errorf("failed to unmarshal media config: %s", sanitizeLogValue(err.Error()))
 		}
 	}
 	if config == nil {
@@ -301,7 +301,7 @@ func (r *SecretSantaReconciler) generateTemplateData(generatorConfigs []secretsa
 				return nil, fmt.Errorf("config for generator %s exceeds maximum allowed size", sanitizeLogValue(config.Name))
 			}
 			if err := json.Unmarshal(config.Config.Raw, &configMap); err != nil {
-				return nil, fmt.Errorf("failed to unmarshal config for generator %s: %w", sanitizeLogValue(config.Name), err)
+				return nil, fmt.Errorf("failed to unmarshal config for generator %s: %s", sanitizeLogValue(config.Name), sanitizeLogValue(err.Error()))
 			}
 		}
 		if configMap == nil {
@@ -421,7 +421,7 @@ func (r *SecretSantaReconciler) updateStatus(ctx context.Context, secretSanta *s
 		return nil
 	}
 	if err != nil {
-		return fmt.Errorf("failed to update status for condition %s: %w", conditionType, err)
+		return fmt.Errorf("failed to update status for condition %s: %w", sanitizeLogValue(conditionType), err)
 	}
 	return nil
 }
@@ -501,17 +501,11 @@ func getMapKeys(m map[string]string) []string {
 	if m == nil {
 		return []string{}
 	}
-	if len(m) == 0 {
-		return []string{}
-	}
 	keys := make([]string, 0, len(m))
 	for k := range m {
 		if k != "" {
 			keys = append(keys, k)
 		}
-	}
-	if len(keys) == 0 {
-		return []string{}
 	}
 	return keys
 }
@@ -535,9 +529,9 @@ func (r *SecretSantaReconciler) SetupWithManager(mgr ctrl.Manager, maxConcurrent
 
 // sanitizeLogValue removes potentially dangerous characters from log values to prevent log injection
 func sanitizeLogValue(value string) string {
-	// Remove all control characters (ASCII < 32) except space to prevent log injection
+	// Remove all control characters (ASCII < 32) to prevent log injection
 	return strings.Map(func(r rune) rune {
-		if r < 32 && r != ' ' {
+		if r < 32 {
 			return -1
 		}
 		return r

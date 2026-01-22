@@ -24,8 +24,9 @@ type K8sSecretsMedia struct {
 func (m *K8sSecretsMedia) Store(ctx context.Context, secretSanta *secretsantav1alpha1.SecretSanta, data string, enableMetadata bool) error {
 	secretName := m.SecretName
 	if secretName == "" {
-		secretName = secretSanta.Spec.SecretName
-		if secretName == "" {
+		if secretSanta.Spec.SecretName != "" {
+			secretName = secretSanta.Spec.SecretName
+		} else {
 			secretName = secretSanta.Name
 		}
 	}

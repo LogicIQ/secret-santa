@@ -1,6 +1,7 @@
 package template
 
 import (
+	"math"
 	"strings"
 	"testing"
 )
@@ -19,11 +20,7 @@ func TestBcrypt(t *testing.T) {
 		return
 	}
 	if !strings.HasPrefix(result, "$2a$") {
-		if len(result) > 10 {
-			t.Errorf("Bcrypt should return hash starting with $2a$, got %s", result[:10])
-		} else {
-			t.Errorf("Bcrypt should return hash starting with $2a$, got %s", result)
-		}
+		t.Errorf("Bcrypt should return hash starting with $2a$, got %s", result)
 	}
 }
 
@@ -33,7 +30,7 @@ func TestEntropy(t *testing.T) {
 		t.Errorf("Entropy should not return error, got %v", err)
 		return
 	}
-	expected := 14.09 // 3 * log2(26)
+	expected := 3 * math.Log2(26)
 	if result < expected-0.1 || result > expected+0.1 {
 		t.Errorf("Entropy should be approximately %.2f, got %.2f", expected, result)
 	}
@@ -54,8 +51,8 @@ func TestURLSafeBase64(t *testing.T) {
 	}
 }
 
-func TestCompact(t *testing.T) {
-	result := Compact("550e8400-e29b-41d4-a716-446655440000")
+func TestRemoveHyphens(t *testing.T) {
+	result := RemoveHyphens("550e8400-e29b-41d4-a716-446655440000")
 	expected := "550e8400e29b41d4a716446655440000"
 	if result != expected {
 		t.Errorf("Compact() = %s, want %s", result, expected)

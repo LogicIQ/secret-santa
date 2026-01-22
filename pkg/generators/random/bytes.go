@@ -16,14 +16,14 @@ func (g *BytesGenerator) Generate(config map[string]interface{}) (map[string]str
 		return nil, fmt.Errorf("length must be at least 1")
 	}
 
-	bytes := make([]byte, length)
-	_, err := rand.Read(bytes)
+	buf := make([]byte, length)
+	_, err := rand.Read(buf)
 	if err != nil {
 		return nil, err
 	}
 
 	return map[string]string{
-		"value":       base64.StdEncoding.EncodeToString(bytes),
+		"value":       base64.StdEncoding.EncodeToString(buf),
 		"generatedAt": time.Now().UTC().Format(time.RFC3339),
 	}, nil
 }

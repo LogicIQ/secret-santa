@@ -22,7 +22,7 @@ func TestPrivateKeyGenerator_Generate(t *testing.T) {
 			name: "RSA 4096",
 			config: map[string]interface{}{
 				"algorithm": "RSA",
-				"rsa_bits":  float64(4096),
+				"rsa_bits":  4096,
 			},
 			algorithm: "RSA",
 		},

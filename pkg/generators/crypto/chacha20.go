@@ -23,11 +23,13 @@ func generateChaCha20Key(algorithm string) (map[string]string, error) {
 }
 
 func (g *ChaCha20KeyGenerator) Generate(config map[string]interface{}) (map[string]string, error) {
+	// config is unused but required by Generator interface
 	return generateChaCha20Key("ChaCha20")
 }
 
 type XChaCha20KeyGenerator struct{}
 
 func (g *XChaCha20KeyGenerator) Generate(config map[string]interface{}) (map[string]string, error) {
+	// config is unused but required by Generator interface
 	return generateChaCha20Key("XChaCha20")
 }

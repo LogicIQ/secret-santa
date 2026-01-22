@@ -14,6 +14,11 @@ import (
 	secretsantav1alpha1 "github.com/logicIQ/secret-santa/api/v1alpha1"
 )
 
+var (
+	azureSecretNameInvalidCharsRegex = regexp.MustCompile(`[^0-9a-zA-Z-]`)
+	azureSecretNameValidRegex        = regexp.MustCompile(`^[0-9a-zA-Z-]+$`)
+)
+
 // AzureKeyVaultMedia stores secrets in Azure Key Vault
 type AzureKeyVaultMedia struct {
 	VaultURL   string
@@ -122,18 +127,10 @@ func (m *AzureKeyVaultMedia) calculateTemplateChecksum(template string) string {
 
 // sanitizeAzureSecretName replaces all invalid characters with hyphens
 func sanitizeAzureSecretName(name string) string {
-	re := regexp.MustCompile(`[^0-9a-zA-Z-]`)
-	return re.ReplaceAllString(name, "-")
+	return azureSecretNameInvalidCharsRegex.ReplaceAllString(name, "-")
 }
 
 // isValidAzureSecretName validates Azure Key Vault secret name format
 func isValidAzureSecretName(name string) bool {
-	if len(name) == 0 {
-		return false
-	}
-	matched, err := regexp.MatchString(`^[0-9a-zA-Z-]+$`, name)
-	if err != nil {
-		return false
-	}
-	return matched
+	return len(name) > 0 && azureSecretNameValidRegex.MatchString(name)
 }

@@ -28,7 +28,8 @@ func getIntConfig(config map[string]interface{}, key string, defaultValue int) i
 }
 
 // getStringSliceConfig extracts a string slice from config map.
-// Non-string elements in the slice are silently ignored.
+// Non-string elements in the slice are silently ignored, which may result in partial results.
+// Returns nil if the key doesn't exist or the value is not a slice.
 func getStringSliceConfig(config map[string]interface{}, key string) []string {
 	if config == nil {
 		return nil

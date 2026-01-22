@@ -43,12 +43,22 @@ func TestRSAKeyGenerator_Generate(t *testing.T) {
 				}
 			}
 
-			if result["key_size"] != tt.keySize {
-				t.Errorf("Generate() key_size = %s, want %s", result["key_size"], tt.keySize)
+			keySize, ok := result["key_size"]
+			if !ok {
+				t.Error("Generate() missing key_size")
+				return
+			}
+			if keySize != tt.keySize {
+				t.Errorf("Generate() key_size = %s, want %s", keySize, tt.keySize)
 			}
 
-			if result["algorithm"] != "RSA" {
-				t.Errorf("Generate() algorithm = %s, want RSA", result["algorithm"])
+			algorithm, ok := result["algorithm"]
+			if !ok {
+				t.Error("Generate() missing algorithm")
+				return
+			}
+			if algorithm != "RSA" {
+				t.Errorf("Generate() algorithm = %s, want RSA", algorithm)
 			}
 
 			// Validate PEM format

@@ -13,7 +13,7 @@ spec:
       type: tls_private_key
       config:
         algorithm: RSA
-        rsa_bits: 2048
+        rsa_bits: 4096
   secretType: "Opaque"
 ---
 apiVersion: secrets.secret-santa.io/v1alpha1
@@ -30,7 +30,7 @@ spec:
       type: tls_private_key
       config:
         algorithm: RSA
-        rsa_bits: 2048
+        rsa_bits: 4096
     - name: SelfSignedCert
       type: tls_self_signed_cert
       config:
@@ -53,7 +53,7 @@ spec:
       type: tls_private_key
       config:
         algorithm: RSA
-        rsa_bits: 2048
+        rsa_bits: 4096
     - name: CSR
       type: tls_cert_request
       config:

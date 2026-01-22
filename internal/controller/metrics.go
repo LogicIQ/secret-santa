@@ -26,8 +26,8 @@ func RecordTemplateValidationError(name, namespace string) {
 	metrics.RecordTemplateValidationError(name, namespace)
 }
 
-func RecordSecretGenerated(name, namespace, secretType string) {
-	metrics.RecordSecretGenerated(name, namespace, secretType)
+func RecordSecretGenerated(name, namespace string) {
+	metrics.RecordSecretGenerated(name, namespace)
 }
 
 func UpdateSecretInstances(name, namespace string, count float64) {

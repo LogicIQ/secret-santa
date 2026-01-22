@@ -22,12 +22,7 @@ spec:
       type: random_password
       config:
         length: 32
-        include_symbols: true
-    - name: dbhost
-      type: random_string
-      config:
-        length: 16
-        charset: "alphanumeric"
+        special: true
     - name: apikey
       type: random_string
       config:

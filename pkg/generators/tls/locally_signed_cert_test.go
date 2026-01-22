@@ -12,10 +12,11 @@ import (
 )
 
 func TestLocallySignedCertGenerator_Generate(t *testing.T) {
+	const testRSAKeySize = 2048
 	gen := &LocallySignedCertGenerator{}
 
 	// Generate CA key pair
-	caPrivateKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	caPrivateKey, err := rsa.GenerateKey(rand.Reader, testRSAKeySize)
 	if err != nil {
 		t.Fatalf("Failed to generate CA private key: %v", err)
 	}
@@ -54,7 +55,7 @@ func TestLocallySignedCertGenerator_Generate(t *testing.T) {
 	})
 
 	// Generate CSR key pair
-	csrPrivateKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	csrPrivateKey, err := rsa.GenerateKey(rand.Reader, testRSAKeySize)
 	if err != nil {
 		t.Fatalf("Failed to generate CSR private key: %v", err)
 	}

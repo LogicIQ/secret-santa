@@ -22,7 +22,7 @@ type Config struct {
 	LogLevel                string
 }
 
-func Load() (*Config, error) {
+func Load() *Config {
 	viper.SetDefault("metrics-bind-address", ":8080")
 	viper.SetDefault("health-probe-bind-address", ":8081")
 	viper.SetDefault("leader-elect", false)
@@ -55,13 +55,17 @@ func Load() (*Config, error) {
 		EnableMetadata:          viper.GetBool("enable-metadata"),
 		LogFormat:               viper.GetString("log-format"),
 		LogLevel:                viper.GetString("log-level"),
-	}, nil
+	}
 }
 
 func getStringSlice(key string) []string {
 	slice := viper.GetStringSlice(key)
 	if len(slice) == 1 && strings.Contains(slice[0], ",") {
-		return strings.Split(slice[0], ",")
+		parts := strings.Split(slice[0], ",")
+		for i, v := range parts {
+			parts[i] = strings.TrimSpace(v)
+		}
+		return parts
 	}
 	return slice
 }

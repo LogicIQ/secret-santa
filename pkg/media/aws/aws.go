@@ -38,6 +38,17 @@ func calculateTemplateChecksum(template string) string {
 	return fmt.Sprintf("%x", hash)[:16]
 }
 
+// loadAWSConfig loads AWS configuration with optional region override
+func loadAWSConfig(ctx context.Context, region string) (aws.Config, error) {
+	var opts []func(*config.LoadOptions) error
+
+	if region != "" {
+		opts = append(opts, config.WithRegion(region))
+	}
+
+	return config.LoadDefaultConfig(ctx, opts...)
+}
+
 // AWSSecretsManagerMedia stores secrets in AWS Secrets Manager
 type AWSSecretsManagerMedia struct {
 	Region     string
@@ -46,7 +57,7 @@ type AWSSecretsManagerMedia struct {
 }
 
 func (m *AWSSecretsManagerMedia) Store(ctx context.Context, secretSanta *secretsantav1alpha1.SecretSanta, data string, enableMetadata bool) error {
-	cfg, err := m.loadAWSConfig()
+	cfg, err := loadAWSConfig(ctx, m.Region)
 	if err != nil {
 		return fmt.Errorf("failed to load AWS config: %w", err)
 	}
@@ -111,16 +122,6 @@ func (m *AWSSecretsManagerMedia) GetType() string {
 	return "aws-secrets-manager"
 }
 
-func (m *AWSSecretsManagerMedia) loadAWSConfig() (aws.Config, error) {
-	var opts []func(*config.LoadOptions) error
-
-	if m.Region != "" {
-		opts = append(opts, config.WithRegion(m.Region))
-	}
-
-	return config.LoadDefaultConfig(context.TODO(), opts...)
-}
-
 // AWSParameterStoreMedia stores secrets in AWS Systems Manager Parameter Store
 type AWSParameterStoreMedia struct {
 	Region        string
@@ -129,7 +130,7 @@ type AWSParameterStoreMedia struct {
 }
 
 func (m *AWSParameterStoreMedia) Store(ctx context.Context, secretSanta *secretsantav1alpha1.SecretSanta, data string, enableMetadata bool) error {
-	cfg, err := m.loadAWSConfig()
+	cfg, err := loadAWSConfig(ctx, m.Region)
 	if err != nil {
 		return fmt.Errorf("failed to load AWS config: %w", err)
 	}
@@ -190,14 +191,4 @@ func (m *AWSParameterStoreMedia) Store(ctx context.Context, secretSanta *secrets
 
 func (m *AWSParameterStoreMedia) GetType() string {
 	return "aws-parameter-store"
-}
-
-func (m *AWSParameterStoreMedia) loadAWSConfig() (aws.Config, error) {
-	var opts []func(*config.LoadOptions) error
-
-	if m.Region != "" {
-		opts = append(opts, config.WithRegion(m.Region))
-	}
-
-	return config.LoadDefaultConfig(context.TODO(), opts...)
 }

@@ -34,7 +34,6 @@ spec:
     
     # Bytes with multiple formats
     secret_bytes: {{ .SecretBytes.value }}
-    secret_bytes_decoded: {{ .SecretBytes.value | b64dec | urlSafeB64 }}
     secret_bytes_hash: {{ .SecretBytes.value | b64dec | sha256 }}
     secret_bytes_checksum: {{ .SecretBytes.value | b64dec | crc32 }}
     
