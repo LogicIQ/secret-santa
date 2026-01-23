@@ -20,7 +20,7 @@ func TestStringGenerator_Generate(t *testing.T) {
 		{
 			name: "custom length",
 			config: map[string]interface{}{
-				"length": float64(64),
+				"length": 64,
 			},
 			want: []string{"value", "charset", "generatedAt"},
 		},

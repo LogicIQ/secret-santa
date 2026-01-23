@@ -2,6 +2,7 @@ package generators
 
 import (
 	"fmt"
+	"strings"
 	"sync"
 )
 
@@ -19,6 +20,12 @@ func NewRegistry() *Registry {
 var globalRegistry = NewRegistry()
 
 func Register(generatorType string, generator Generator) error {
+	if strings.TrimSpace(generatorType) == "" {
+		return fmt.Errorf("generator type cannot be empty")
+	}
+	if generator == nil {
+		return fmt.Errorf("generator cannot be nil")
+	}
 	globalRegistry.mu.Lock()
 	defer globalRegistry.mu.Unlock()
 	if _, exists := globalRegistry.generators[generatorType]; exists {
@@ -29,6 +36,9 @@ func Register(generatorType string, generator Generator) error {
 }
 
 func Get(generatorType string) (Generator, error) {
+	if generatorType == "" {
+		return nil, fmt.Errorf("generator type cannot be empty")
+	}
 	globalRegistry.mu.RLock()
 	defer globalRegistry.mu.RUnlock()
 

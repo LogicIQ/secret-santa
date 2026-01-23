@@ -18,6 +18,9 @@ import (
 )
 
 func TestTemplateFunctions(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+
 	cfg, err := config.GetConfig()
 	if err != nil {
 		t.Fatalf("Failed to get config: %v", err)
@@ -64,14 +67,18 @@ sha256: {{ .Password.value | sha256 }}`,
 		},
 	}
 
-	_, err = dynClient.Resource(secretSantaGVR).Namespace(namespace).Create(context.TODO(), secretSanta, metav1.CreateOptions{})
+	_, err = dynClient.Resource(secretSantaGVR).Namespace(namespace).Create(ctx, secretSanta, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("Failed to create SecretSanta: %v", err)
 	}
-	defer dynClient.Resource(secretSantaGVR).Namespace(namespace).Delete(context.TODO(), name, metav1.DeleteOptions{})
+	defer func() {
+		delCtx, delCancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer delCancel()
+		dynClient.Resource(secretSantaGVR).Namespace(namespace).Delete(delCtx, name, metav1.DeleteOptions{})
+	}()
 
 	err = wait.PollImmediate(2*time.Second, 60*time.Second, func() (bool, error) {
-		_, err := client.CoreV1().Secrets(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+		_, err := client.CoreV1().Secrets(namespace).Get(ctx, name, metav1.GetOptions{})
 		if err != nil {
 			return false, nil // Continue polling on error
 		}
@@ -81,7 +88,7 @@ sha256: {{ .Password.value | sha256 }}`,
 		t.Fatalf("Secret was not created: %v", err)
 	}
 
-	secret, err := client.CoreV1().Secrets(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+	secret, err := client.CoreV1().Secrets(namespace).Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
 		t.Fatalf("Failed to get secret: %v", err)
 	}
@@ -90,24 +97,28 @@ sha256: {{ .Password.value | sha256 }}`,
 		t.Errorf("Expected secret type Opaque, got %s", secret.Type)
 	}
 
-	data := string(secret.Data["data"])
-	if len(data) == 0 {
+	data, exists := secret.Data["data"]
+	if !exists {
+		t.Fatal("data key not found in secret")
+	}
+	dataStr := string(data)
+	if len(dataStr) == 0 {
 		t.Error("Secret data is empty")
 	}
 
-	if !strings.Contains(data, "password:") {
+	if !strings.Contains(dataStr, "password:") {
 		t.Error("Password not found in secret data")
 	}
-	if !strings.Contains(data, "bcrypt_hash:") {
+	if !strings.Contains(dataStr, "bcrypt_hash:") {
 		t.Error("Bcrypt hash not found in secret data")
 	}
-	if !strings.Contains(data, "length: 32") {
+	if !strings.Contains(dataStr, "length: 32") {
 		t.Error("Length not computed correctly")
 	}
-	if !strings.Contains(data, "entropy:") {
+	if !strings.Contains(dataStr, "entropy:") {
 		t.Error("Entropy not computed")
 	}
-	if !strings.Contains(data, "sha256:") {
+	if !strings.Contains(dataStr, "sha256:") {
 		t.Error("SHA256 hash not computed")
 	}
 }

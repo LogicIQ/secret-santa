@@ -24,9 +24,15 @@ var (
 		Version:  "v1alpha1",
 		Resource: "secretsanta",
 	}
+
+	pollInterval = 2 * time.Second
+	pollTimeout  = 60 * time.Second
 )
 
 func TestE2ERandomPassword(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+
 	cfg, err := config.GetConfig()
 	if err != nil {
 		t.Fatalf("Failed to get config: %v", err)
@@ -74,19 +80,21 @@ sha256: {{ .Password.value | sha256 }}`,
 		},
 	}
 
-	_, err = dynClient.Resource(secretSantaGVR).Namespace(namespace).Create(context.TODO(), secretSanta, metav1.CreateOptions{})
+	_, err = dynClient.Resource(secretSantaGVR).Namespace(namespace).Create(ctx, secretSanta, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("Failed to create SecretSanta: %v", err)
 	}
 	defer func() {
-		if delErr := dynClient.Resource(secretSantaGVR).Namespace(namespace).Delete(context.TODO(), name, metav1.DeleteOptions{}); delErr != nil {
+		delCtx, delCancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer delCancel()
+		if delErr := dynClient.Resource(secretSantaGVR).Namespace(namespace).Delete(delCtx, name, metav1.DeleteOptions{}); delErr != nil {
 			t.Logf("Failed to delete SecretSanta: %v", delErr)
 		}
 	}()
 
 	// Wait for secret to be created
-	err = wait.PollImmediate(2*time.Second, 60*time.Second, func() (bool, error) {
-		_, err := client.CoreV1().Secrets(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+	err = wait.PollImmediate(pollInterval, pollTimeout, func() (bool, error) {
+		_, err := client.CoreV1().Secrets(namespace).Get(ctx, name, metav1.GetOptions{})
 		return err == nil, nil
 	})
 	if err != nil {
@@ -94,7 +102,7 @@ sha256: {{ .Password.value | sha256 }}`,
 	}
 
 	// Verify secret content
-	secret, err := client.CoreV1().Secrets(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+	secret, err := client.CoreV1().Secrets(namespace).Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
 		t.Fatalf("Failed to get secret: %v", err)
 	}
@@ -127,6 +135,9 @@ sha256: {{ .Password.value | sha256 }}`,
 }
 
 func TestE2EMultipleGenerators(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+
 	cfg, err := config.GetConfig()
 	if err != nil {
 		t.Fatalf("Failed to get config: %v", err)
@@ -195,19 +206,21 @@ port_hex: {{ .Port.value | toHex }}`,
 		},
 	}
 
-	_, err = dynClient.Resource(secretSantaGVR).Namespace(namespace).Create(context.TODO(), secretSanta, metav1.CreateOptions{})
+	_, err = dynClient.Resource(secretSantaGVR).Namespace(namespace).Create(ctx, secretSanta, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("Failed to create SecretSanta: %v", err)
 	}
 	defer func() {
-		if delErr := dynClient.Resource(secretSantaGVR).Namespace(namespace).Delete(context.TODO(), name, metav1.DeleteOptions{}); delErr != nil {
+		delCtx, delCancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer delCancel()
+		if delErr := dynClient.Resource(secretSantaGVR).Namespace(namespace).Delete(delCtx, name, metav1.DeleteOptions{}); delErr != nil {
 			t.Logf("Failed to delete SecretSanta: %v", delErr)
 		}
 	}()
 
 	// Wait for secret to be created
-	err = wait.PollImmediate(2*time.Second, 60*time.Second, func() (bool, error) {
-		_, err := client.CoreV1().Secrets(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+	err = wait.PollImmediate(pollInterval, pollTimeout, func() (bool, error) {
+		_, err := client.CoreV1().Secrets(namespace).Get(ctx, name, metav1.GetOptions{})
 		return err == nil, nil
 	})
 	if err != nil {
@@ -215,7 +228,7 @@ port_hex: {{ .Port.value | toHex }}`,
 	}
 
 	// Verify secret content
-	secret, err := client.CoreV1().Secrets(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+	secret, err := client.CoreV1().Secrets(namespace).Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
 		t.Fatalf("Failed to get secret: %v", err)
 	}

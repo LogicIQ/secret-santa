@@ -247,6 +247,9 @@ func (r *SecretSantaReconciler) createMedia(secretSanta *secretsantav1alpha1.Sec
 		}, nil
 	case "gcp-secret-manager":
 		projectID, _ := config["project_id"].(string)
+		if projectID == "" {
+			return nil, fmt.Errorf("project_id is required for gcp-secret-manager")
+		}
 		secretName, _ := config["secret_name"].(string)
 		credentialsFile, _ := config["credentials_file"].(string)
 		return &gcp.GCPSecretManagerMedia{

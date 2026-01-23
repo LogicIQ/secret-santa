@@ -20,7 +20,7 @@ func getIntConfig(config map[string]interface{}, key string, defaultValue int) i
 	case int:
 		return val
 	case float64:
-		if val >= math.MinInt && val <= math.MaxInt {
+		if !math.IsNaN(val) && !math.IsInf(val, 0) && val >= math.MinInt && val <= math.MaxInt && val == math.Trunc(val) {
 			return int(val)
 		}
 	}

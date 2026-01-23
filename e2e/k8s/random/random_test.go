@@ -79,7 +79,7 @@ entropy: {{ entropy .Password.value .Password.charset | printf "%.2f" }}`,
 		},
 	}
 
-	_, err = dynClient.Resource(secretSantaGVR).Namespace(namespace).Create(context.TODO(), secretSanta, metav1.CreateOptions{})
+	_, err := dynClient.Resource(secretSantaGVR).Namespace(namespace).Create(context.TODO(), secretSanta, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("Failed to create SecretSanta: %v", err)
 	}
@@ -192,7 +192,7 @@ random_id: {{ .RandomID.value }}`,
 		},
 	}
 
-	_, err = dynClient.Resource(secretSantaGVR).Namespace(namespace).Create(context.TODO(), secretSanta, metav1.CreateOptions{})
+	_, err := dynClient.Resource(secretSantaGVR).Namespace(namespace).Create(context.TODO(), secretSanta, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("Failed to create SecretSanta: %v", err)
 	}

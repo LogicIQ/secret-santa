@@ -44,7 +44,8 @@ func TestBytesGenerator_Generate(t *testing.T) {
 			}
 
 			// Validate base64 value
-			decoded, err := base64.StdEncoding.DecodeString(result["value"])
+			value := result["value"]
+			decoded, err := base64.StdEncoding.DecodeString(value)
 			if err != nil {
 				t.Errorf("Generate() invalid base64 value: %v", err)
 				return

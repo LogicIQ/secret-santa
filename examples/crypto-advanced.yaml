@@ -5,15 +5,15 @@ metadata:
   namespace: default
 spec:
   template: |
-    chacha20_key: {{ .ChaCha20.key_base64 }}
-    xchacha20_key: {{ .XChaCha20.key_base64 }}
-    aes_key: {{ .AES.key_base64 }}
+    chacha20_key: {{ .chacha20.key_base64 }}
+    xchacha20_key: {{ .xchacha20.key_base64 }}
+    aes_key: {{ .aes.key_base64 }}
   generators:
-    - name: ChaCha20
+    - name: chacha20
       type: crypto_chacha20_key
-    - name: XChaCha20
+    - name: xchacha20
       type: crypto_xchacha20_key
-    - name: AES
+    - name: aes
       type: crypto_aes_key
       config:
         key_size: 256
@@ -26,17 +26,17 @@ metadata:
   namespace: default
 spec:
   template: |
-    ecdsa_private: {{ .ECDSA.private_key_pem }}
-    ecdsa_public: {{ .ECDSA.public_key_pem }}
-    ecdh_private: {{ .ECDH.private_key_pem }}
-    ecdh_public: {{ .ECDH.public_key_pem }}
-    curve_info: {{ .ECDSA.curve }}
+    ecdsa_private: {{ .ecdsa.private_key_pem }}
+    ecdsa_public: {{ .ecdsa.public_key_pem }}
+    ecdh_private: {{ .ecdh.private_key_pem }}
+    ecdh_public: {{ .ecdh.public_key_pem }}
+    curve_info: {{ .ecdsa.curve }}
   generators:
-    - name: ECDSA
+    - name: ecdsa
       type: crypto_ecdsa_key
       config:
         curve: "P256"
-    - name: ECDH
+    - name: ecdh
       type: crypto_ecdh_key
       config:
         curve: "X25519"

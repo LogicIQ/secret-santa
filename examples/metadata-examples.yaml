@@ -30,8 +30,6 @@ spec:
     - name: TLSCert
       type: tls_self_signed_cert
       config:
-        key_algorithm: "RSA"
-        rsa_bits: 2048
         subject:
           common_name: "example.com"
         validity_period_hours: 8760

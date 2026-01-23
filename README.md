@@ -52,6 +52,7 @@ For Azure Key Vault:
 
 ```bash
 # With service principal
+# amazonq-ignore-next-line
 helm install secret-santa logiciq/secret-santa \
   --set azure.enabled=true \
   --set azure.tenantId=00000000-0000-0000-0000-000000000000 \
@@ -73,6 +74,7 @@ For GCP Secret Manager:
 
 ```bash
 # With service account key file
+# amazonq-ignore-next-line
 helm install secret-santa logiciq/secret-santa \
   --set gcp.enabled=true \
   --set gcp.projectId=my-project-id \

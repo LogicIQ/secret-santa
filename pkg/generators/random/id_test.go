@@ -21,7 +21,7 @@ func TestIDGenerator_Generate(t *testing.T) {
 		{
 			name: "custom length",
 			config: map[string]interface{}{
-				"byte_length": float64(16),
+				"byte_length": 16,
 			},
 			length: 16,
 		},

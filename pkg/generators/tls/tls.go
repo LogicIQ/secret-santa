@@ -14,6 +14,7 @@ import (
 type SelfSignedCertGenerator struct{}
 
 func (g *SelfSignedCertGenerator) Generate(config map[string]interface{}) (map[string]string, error) {
+	// TODO: Add support for ECDSA and Ed25519 key algorithms through key_algorithm config parameter
 	// Generate private key
 	keySize := getIntConfig(config, "key_size", 2048)
 	privateKey, err := rsa.GenerateKey(rand.Reader, keySize)
@@ -31,16 +32,26 @@ func (g *SelfSignedCertGenerator) Generate(config map[string]interface{}) (map[s
 	notBefore := time.Now()
 	notAfter := notBefore.Add(time.Duration(validityDays) * 24 * time.Hour)
 
+	dnsNames := getStringSliceConfig(config, "dns_names")
+	if len(dnsNames) == 0 {
+		dnsNames = []string{getStringConfig(config, "common_name", "localhost")}
+	}
+
 	template := x509.Certificate{
 		SerialNumber: serialNumber,
 		Subject: pkix.Name{
-			CommonName: getStringConfig(config, "common_name", "localhost"),
+			CommonName:         getStringConfig(config, "common_name", "localhost"),
+			Organization:       getStringSliceConfig(config, "organization"),
+			OrganizationalUnit: getStringSliceConfig(config, "organizational_unit"),
+			Country:            getStringSliceConfig(config, "country"),
+			Province:           getStringSliceConfig(config, "province"),
+			Locality:           getStringSliceConfig(config, "locality"),
 		},
 		NotBefore:   notBefore,
 		NotAfter:    notAfter,
 		KeyUsage:    x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
 		ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
-		DNSNames:    []string{getStringConfig(config, "common_name", "localhost")},
+		DNSNames:    dnsNames,
 	}
 
 	// Create certificate

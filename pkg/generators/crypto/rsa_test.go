@@ -43,21 +43,11 @@ func TestRSAKeyGenerator_Generate(t *testing.T) {
 				}
 			}
 
-			keySize, ok := result["key_size"]
-			if !ok {
-				t.Error("Generate() missing key_size")
-				return
-			}
-			if keySize != tt.keySize {
+			if keySize := result["key_size"]; keySize != tt.keySize {
 				t.Errorf("Generate() key_size = %s, want %s", keySize, tt.keySize)
 			}
 
-			algorithm, ok := result["algorithm"]
-			if !ok {
-				t.Error("Generate() missing algorithm")
-				return
-			}
-			if algorithm != "RSA" {
+			if algorithm := result["algorithm"]; algorithm != "RSA" {
 				t.Errorf("Generate() algorithm = %s, want RSA", algorithm)
 			}
 

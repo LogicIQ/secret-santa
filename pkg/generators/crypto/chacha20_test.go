@@ -11,6 +11,8 @@ type keyGenerator interface {
 }
 
 func TestChaCha20Generators(t *testing.T) {
+	const expectedKeyBytes = 32
+
 	tests := []struct {
 		name      string
 		generator keyGenerator
@@ -43,8 +45,9 @@ func TestChaCha20Generators(t *testing.T) {
 				}
 			}
 
-			if result["key_size"] != "256" {
-				t.Errorf("Generate() key_size = %s, want 256", result["key_size"])
+			const expectedKeySize = "256"
+			if result["key_size"] != expectedKeySize {
+				t.Errorf("Generate() key_size = %s, want %s", result["key_size"], expectedKeySize)
 				return
 			}
 
@@ -58,8 +61,8 @@ func TestChaCha20Generators(t *testing.T) {
 				t.Errorf("Generate() invalid base64: %v", err)
 				return
 			}
-			if len(decoded) != 32 {
-				t.Errorf("Generate() key length = %d, want 32", len(decoded))
+			if len(decoded) != expectedKeyBytes {
+				t.Errorf("Generate() key length = %d, want %d", len(decoded), expectedKeyBytes)
 			}
 
 			hexDecoded, err := hex.DecodeString(result["key_hex"])
@@ -67,8 +70,8 @@ func TestChaCha20Generators(t *testing.T) {
 				t.Errorf("Generate() invalid hex: %v", err)
 				return
 			}
-			if len(hexDecoded) != 32 {
-				t.Errorf("Generate() hex key length = %d, want 32", len(hexDecoded))
+			if len(hexDecoded) != expectedKeyBytes {
+				t.Errorf("Generate() hex key length = %d, want %d", len(hexDecoded), expectedKeyBytes)
 			}
 		})
 	}

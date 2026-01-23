@@ -16,10 +16,12 @@ func (g *IDGenerator) Generate(config map[string]interface{}) (map[string]string
 	if byteLength < 1 {
 		return nil, fmt.Errorf("byte_length must be at least 1")
 	}
+	if byteLength > 1024 {
+		return nil, fmt.Errorf("byte_length too large, maximum 1024")
+	}
 
 	bytes := make([]byte, byteLength)
-	_, err := rand.Read(bytes)
-	if err != nil {
+	if _, err := rand.Read(bytes); err != nil {
 		return nil, err
 	}
 

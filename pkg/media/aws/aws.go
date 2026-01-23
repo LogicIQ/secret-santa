@@ -3,6 +3,7 @@ package aws
 import (
 	"context"
 	"crypto/sha256"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -10,7 +11,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/secretsmanager"
-	"github.com/aws/aws-sdk-go-v2/service/secretsmanager/types" // Fixed import
+	"github.com/aws/aws-sdk-go-v2/service/secretsmanager/types"
 	"github.com/aws/aws-sdk-go-v2/service/ssm"
 	ssm_types "github.com/aws/aws-sdk-go-v2/service/ssm/types"
 
@@ -66,8 +67,9 @@ func (m *AWSSecretsManagerMedia) Store(ctx context.Context, secretSanta *secrets
 
 	secretName := m.SecretName
 	if secretName == "" {
-		secretName = secretSanta.Spec.SecretName
-		if secretName == "" {
+		if secretSanta.Spec.SecretName != "" {
+			secretName = secretSanta.Spec.SecretName
+		} else {
 			secretName = secretSanta.Name
 		}
 	}
@@ -115,7 +117,14 @@ func (m *AWSSecretsManagerMedia) Store(ctx context.Context, secretSanta *secrets
 	}
 
 	_, err = client.CreateSecret(ctx, input)
-	return err
+	if err != nil {
+		var resourceExists *types.ResourceExistsException
+		if errors.As(err, &resourceExists) {
+			return nil
+		}
+		return err
+	}
+	return nil
 }
 
 func (m *AWSSecretsManagerMedia) GetType() string {
@@ -139,8 +148,9 @@ func (m *AWSParameterStoreMedia) Store(ctx context.Context, secretSanta *secrets
 
 	paramName := m.ParameterName
 	if paramName == "" {
-		paramName = secretSanta.Spec.SecretName
-		if paramName == "" {
+		if secretSanta.Spec.SecretName != "" {
+			paramName = secretSanta.Spec.SecretName
+		} else {
 			paramName = secretSanta.Name
 		}
 	}
@@ -186,7 +196,14 @@ func (m *AWSParameterStoreMedia) Store(ctx context.Context, secretSanta *secrets
 	}
 
 	_, err = client.PutParameter(ctx, input)
-	return err
+	if err != nil {
+		var paramExists *ssm_types.ParameterAlreadyExists
+		if errors.As(err, &paramExists) {
+			return nil
+		}
+		return err
+	}
+	return nil
 }
 
 func (m *AWSParameterStoreMedia) GetType() string {

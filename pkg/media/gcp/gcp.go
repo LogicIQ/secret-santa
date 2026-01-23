@@ -95,9 +95,13 @@ func (m *GCPSecretManagerMedia) Store(ctx context.Context, secretSanta *secretsa
 				Parent: secretPath,
 			}
 			versions := client.ListSecretVersions(ctx, listReq)
-			if _, vErr := versions.Next(); vErr == nil {
+			_, vErr := versions.Next()
+			if vErr == nil {
 				// Secret already has versions, skip adding new version (create-once)
 				return nil
+			}
+			if vErr.Error() != "no more items in iterator" {
+				return fmt.Errorf("failed to list secret versions: %w", vErr)
 			}
 		} else {
 			return fmt.Errorf("failed to create secret: %w", err)

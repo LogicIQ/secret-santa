@@ -9,7 +9,9 @@ import (
 	secretsantav1alpha1 "github.com/logicIQ/secret-santa/api/v1alpha1"
 )
 
-func resolveName(mediaName, specSecretName, metaName string) string {
+// testResolveName is a test helper that mimics the name resolution logic
+// used in AWS media implementations for testing purposes only.
+func testResolveName(mediaName, specSecretName, metaName string) string {
 	if mediaName != "" {
 		return mediaName
 	}
@@ -76,7 +78,7 @@ func TestAWSSecretsManagerMedia_SecretNameResolution(t *testing.T) {
 				},
 			}
 
-			secretName := resolveName(media.SecretName, secretSanta.Spec.SecretName, secretSanta.Name)
+			secretName := testResolveName(media.SecretName, secretSanta.Spec.SecretName, secretSanta.Name)
 			assert.Equal(t, tt.expectedName, secretName)
 		})
 	}
@@ -129,7 +131,7 @@ func TestAWSParameterStoreMedia_ParameterNameResolution(t *testing.T) {
 				},
 			}
 
-			paramName := resolveName(media.ParameterName, secretSanta.Spec.SecretName, secretSanta.Name)
+			paramName := testResolveName(media.ParameterName, secretSanta.Spec.SecretName, secretSanta.Name)
 			assert.Equal(t, tt.expectedName, paramName)
 		})
 	}

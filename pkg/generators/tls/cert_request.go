@@ -17,9 +17,12 @@ func (g *CertRequestGenerator) Generate(config map[string]interface{}) (map[stri
 		return nil, fmt.Errorf("private_key_pem is required")
 	}
 
-	block, _ := pem.Decode([]byte(privateKeyPEM))
+	block, rest := pem.Decode([]byte(privateKeyPEM))
 	if block == nil {
 		return nil, fmt.Errorf("failed to decode private key PEM")
+	}
+	if len(rest) > 0 {
+		return nil, fmt.Errorf("private key PEM contains extra data")
 	}
 
 	privateKey, err := x509.ParsePKCS8PrivateKey(block.Bytes)
@@ -31,7 +34,7 @@ func (g *CertRequestGenerator) Generate(config map[string]interface{}) (map[stri
 			// Try SEC1 for EC keys
 			privateKey = ecKey
 		} else {
-			return nil, err
+			return nil, fmt.Errorf("failed to parse private key in PKCS8, PKCS1, or EC format: %v", err)
 		}
 	}
 

@@ -55,7 +55,7 @@ func (g *LocallySignedCertGenerator) Generate(config map[string]interface{}) (ma
 		// Try parsing as PKCS1 RSA key if PKCS8 fails
 		rsaKey, rsaErr := x509.ParsePKCS1PrivateKey(caKeyBlock.Bytes)
 		if rsaErr != nil {
-			return nil, fmt.Errorf("failed to parse CA private key: %w", err)
+			return nil, fmt.Errorf("failed to parse CA private key: %w", rsaErr)
 		}
 		caPrivateKey = rsaKey
 	}
@@ -76,7 +76,7 @@ func (g *LocallySignedCertGenerator) Generate(config map[string]interface{}) (ma
 
 	caCert, err := x509.ParseCertificate(caCertBlock.Bytes)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to parse CA certificate: %w", err)
 	}
 
 	// Validate CA private key matches CA certificate

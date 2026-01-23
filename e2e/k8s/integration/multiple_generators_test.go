@@ -24,6 +24,9 @@ var secretSantaGVR = schema.GroupVersionResource{
 }
 
 func TestMultipleGenerators(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+
 	cfg, err := config.GetConfig()
 	if err != nil {
 		t.Fatalf("Failed to get config: %v", err)
@@ -91,19 +94,21 @@ port_hex: {{ .Port.value | toHex }}`,
 		},
 	}
 
-	_, err = dynClient.Resource(secretSantaGVR).Namespace(namespace).Create(context.TODO(), secretSanta, metav1.CreateOptions{})
+	_, err = dynClient.Resource(secretSantaGVR).Namespace(namespace).Create(ctx, secretSanta, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("Failed to create SecretSanta: %v", err)
 	}
 	defer func() {
-		delErr := dynClient.Resource(secretSantaGVR).Namespace(namespace).Delete(context.TODO(), name, metav1.DeleteOptions{})
+		delCtx, delCancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer delCancel()
+		delErr := dynClient.Resource(secretSantaGVR).Namespace(namespace).Delete(delCtx, name, metav1.DeleteOptions{})
 		if delErr != nil {
 			t.Logf("Failed to delete SecretSanta: %v", delErr)
 		}
 	}()
 
 	err = wait.PollImmediate(2*time.Second, 60*time.Second, func() (bool, error) {
-		_, getErr := client.CoreV1().Secrets(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+		_, getErr := client.CoreV1().Secrets(namespace).Get(ctx, name, metav1.GetOptions{})
 		if getErr != nil {
 			return false, nil
 		}
@@ -111,7 +116,7 @@ port_hex: {{ .Port.value | toHex }}`,
 	})
 	if err != nil {
 		// Check if SecretSanta has error condition
-		ss, getErr := dynClient.Resource(secretSantaGVR).Namespace(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+		ss, getErr := dynClient.Resource(secretSantaGVR).Namespace(namespace).Get(ctx, name, metav1.GetOptions{})
 		if getErr == nil {
 			if conditions, found, nestedErr := unstructured.NestedSlice(ss.Object, "status", "conditions"); found && nestedErr == nil {
 				for _, cond := range conditions {
@@ -126,16 +131,20 @@ port_hex: {{ .Port.value | toHex }}`,
 		t.Fatalf("Timeout waiting for secret to be created: %v", err)
 	}
 
-	secret, err := client.CoreV1().Secrets(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+	secret, err := client.CoreV1().Secrets(namespace).Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
 		t.Fatalf("Failed to get secret: %v", err)
 	}
 
-	data := string(secret.Data["data"])
+	data, ok := secret.Data["data"]
+	if !ok {
+		t.Fatalf("Secret data key 'data' not found")
+	}
+	dataStr := string(data)
 
 	expectedFields := []string{"password:", "api_key:", "uuid:", "uuid_compact:", "port:", "port_hex:"}
 	for _, field := range expectedFields {
-		if !strings.Contains(data, field) {
+		if !strings.Contains(dataStr, field) {
 			t.Errorf("Field %s not found in secret data", field)
 		}
 	}

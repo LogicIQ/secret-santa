@@ -21,6 +21,9 @@ func getStringConfig(config map[string]interface{}, key, defaultValue string) st
 }
 
 func getIntConfig(config map[string]interface{}, key string, defaultValue int) int {
+	if val, ok := config[key].(int); ok {
+		return val
+	}
 	if val, ok := config[key].(float64); ok {
 		return int(val)
 	}
@@ -66,7 +69,7 @@ func publicKeysMatch(privateKey, publicKey interface{}) bool {
 		return ok && priv.PublicKey.N.Cmp(pub.N) == 0 && priv.PublicKey.E == pub.E
 	case *ecdsa.PrivateKey:
 		pub, ok := publicKey.(*ecdsa.PublicKey)
-		return ok && priv.PublicKey.X.Cmp(pub.X) == 0 && priv.PublicKey.Y.Cmp(pub.Y) == 0
+		return ok && priv.PublicKey.Curve == pub.Curve && priv.PublicKey.X.Cmp(pub.X) == 0 && priv.PublicKey.Y.Cmp(pub.Y) == 0
 	case ed25519.PrivateKey:
 		pub, ok := publicKey.(ed25519.PublicKey)
 		return ok && priv.Public().(ed25519.PublicKey).Equal(pub)

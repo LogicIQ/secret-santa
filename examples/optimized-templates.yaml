@@ -1,4 +1,3 @@
-# yaml-language-server: $schema=https://json.schemastore.org/kustomization.json
 apiVersion: secrets.secret-santa.io/v1alpha1
 kind: SecretSanta
 metadata:

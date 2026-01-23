@@ -37,7 +37,7 @@ func SHA256(s string) string {
 func Bcrypt(s string) (string, error) {
 	password := []byte(s)
 	if len(password) > 72 {
-		password = password[:72]
+		return "", fmt.Errorf("password exceeds bcrypt's 72 byte limit (got %d bytes)", len(password))
 	}
 	hash, err := bcrypt.GenerateFromPassword(password, bcrypt.DefaultCost)
 	if err != nil {
@@ -65,26 +65,32 @@ func RemoveHyphens(s string) string {
 	return strings.ReplaceAll(s, "-", "")
 }
 
-func ToBinary(i interface{}) string {
+func ToBinary(i interface{}) (string, error) {
 	switch v := i.(type) {
 	case int:
-		return fmt.Sprintf("%b", v)
+		return fmt.Sprintf("%b", v), nil
 	case string:
-		if num, err := strconv.Atoi(v); err == nil {
-			return fmt.Sprintf("%b", num)
+		num, err := strconv.Atoi(v)
+		if err != nil {
+			return "", fmt.Errorf("failed to convert string to binary: %w", err)
 		}
+		return fmt.Sprintf("%b", num), nil
+	default:
+		return "", fmt.Errorf("unsupported type for binary conversion: %T", i)
 	}
-	return ""
 }
 
-func ToHex(i interface{}) string {
+func ToHex(i interface{}) (string, error) {
 	switch v := i.(type) {
 	case int:
-		return fmt.Sprintf("%x", v)
+		return fmt.Sprintf("%x", v), nil
 	case string:
-		if num, err := strconv.Atoi(v); err == nil {
-			return fmt.Sprintf("%x", num)
+		num, err := strconv.Atoi(v)
+		if err != nil {
+			return "", fmt.Errorf("failed to convert string to hex: %w", err)
 		}
+		return fmt.Sprintf("%x", num), nil
+	default:
+		return "", fmt.Errorf("unsupported type for hex conversion: %T", i)
 	}
-	return ""
 }

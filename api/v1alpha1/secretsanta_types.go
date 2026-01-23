@@ -59,6 +59,9 @@ type SecretSantaSpec struct {
 	// Media specifies where to store the generated secret (defaults to Kubernetes)
 	Media *MediaConfig `json:"media,omitempty"`
 	// SecretName overrides the default secret name (defaults to CR name)
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=253
+	// +kubebuilder:validation:Pattern=`^[a-z0-9]([-a-z0-9]*[a-z0-9])?$`
 	SecretName string `json:"secretName,omitempty"`
 	// SecretType sets the Kubernetes secret type
 	// +kubebuilder:default="Opaque"
@@ -90,8 +93,9 @@ type SecretSantaStatus struct {
 type SecretSanta struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
-	Spec              SecretSantaSpec   `json:"spec,omitempty"`
-	Status            SecretSantaStatus `json:"status,omitempty"`
+
+	Spec   SecretSantaSpec   `json:"spec,omitempty"`
+	Status SecretSantaStatus `json:"status,omitempty"`
 }
 
 //+kubebuilder:object:root=true

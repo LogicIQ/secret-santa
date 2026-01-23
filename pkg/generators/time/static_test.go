@@ -40,11 +40,12 @@ func TestStaticGenerator_Generate(t *testing.T) {
 			}
 
 			// Validate RFC3339 format
-			if _, ok := result["rfc3339"]; !ok {
+			rfc3339Val, ok := result["rfc3339"]
+			if !ok {
 				t.Error("rfc3339 value is missing")
 				return
 			}
-			_, err = time.Parse(time.RFC3339, result["rfc3339"])
+			_, err = time.Parse(time.RFC3339, rfc3339Val)
 			if err != nil {
 				t.Errorf("Generate() invalid RFC3339 format: %v", err)
 				return

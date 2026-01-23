@@ -35,10 +35,17 @@ func init() {
 }
 
 func main() {
+	if err := execute(); err != nil {
+		setupLog.Error(err, "fatal error")
+		os.Exit(1)
+	}
+}
+
+func execute() error {
 	rootCmd := &cobra.Command{
 		Use:   "secret-santa",
 		Short: "Kubernetes operator for sensitive data generation",
-		Run:   run,
+		RunE:  runController,
 	}
 
 	rootCmd.Flags().String("metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
@@ -55,24 +62,30 @@ func main() {
 	rootCmd.Flags().String("log-format", "json", "Log format: json or console")
 	rootCmd.Flags().String("log-level", "info", "Log level: debug, info, warn, error")
 
+	viper.AutomaticEnv()
+	viper.SetEnvKeyReplacer(strings.NewReplacer("-", "_"))
+
 	if err := viper.BindPFlags(rootCmd.Flags()); err != nil {
-		setupLog.Error(err, "unable to bind flags")
-		os.Exit(1)
+		return err
 	}
 
-	if err := rootCmd.Execute(); err != nil {
-		setupLog.Error(err, "failed to execute command")
-		os.Exit(1)
-	}
+	return rootCmd.Execute()
 }
 
-func run(cmd *cobra.Command, args []string) {
+func runController(cmd *cobra.Command, args []string) error {
 	setupLogger()
 	cfg := loadConfig()
-	mgr := createManager(cfg)
-	setupController(mgr, cfg)
-	setupHealthChecks(mgr)
-	startManager(mgr)
+	mgr, err := createManager(cfg)
+	if err != nil {
+		return err
+	}
+	if err := setupController(mgr, cfg); err != nil {
+		return err
+	}
+	if err := setupHealthChecks(mgr); err != nil {
+		return err
+	}
+	return startManager(mgr)
 }
 
 func setupLogger() {
@@ -125,7 +138,7 @@ func loadConfig() *config.Config {
 	return config.Load()
 }
 
-func createManager(cfg *config.Config) ctrl.Manager {
+func createManager(cfg *config.Config) (ctrl.Manager, error) {
 	var cacheOpts cache.Options
 	if len(cfg.WatchNamespaces) > 0 {
 		cacheOpts.DefaultNamespaces = make(map[string]cache.Config)
@@ -134,7 +147,7 @@ func createManager(cfg *config.Config) ctrl.Manager {
 		}
 	}
 
-	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
+	return ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme:                 scheme,
 		Metrics:                server.Options{BindAddress: cfg.MetricsBindAddress},
 		HealthProbeBindAddress: cfg.HealthProbeBindAddress,
@@ -142,15 +155,10 @@ func createManager(cfg *config.Config) ctrl.Manager {
 		LeaderElectionID:       "secret-santa-leader-election",
 		Cache:                  cacheOpts,
 	})
-	if err != nil {
-		setupLog.Error(err, "unable to start manager")
-		os.Exit(1)
-	}
-	return mgr
 }
 
-func setupController(mgr ctrl.Manager, cfg *config.Config) {
-	if err := (&controller.SecretSantaReconciler{
+func setupController(mgr ctrl.Manager, cfg *config.Config) error {
+	return (&controller.SecretSantaReconciler{
 		Client:             mgr.GetClient(),
 		Scheme:             mgr.GetScheme(),
 		IncludeAnnotations: cfg.IncludeAnnotations,
@@ -159,27 +167,17 @@ func setupController(mgr ctrl.Manager, cfg *config.Config) {
 		ExcludeLabels:      cfg.ExcludeLabels,
 		DryRun:             cfg.DryRun,
 		EnableMetadata:     cfg.EnableMetadata,
-	}).SetupWithManager(mgr, cfg.MaxConcurrentReconciles); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "SecretSanta")
-		os.Exit(1)
-	}
+	}).SetupWithManager(mgr, cfg.MaxConcurrentReconciles)
 }
 
-func setupHealthChecks(mgr ctrl.Manager) {
+func setupHealthChecks(mgr ctrl.Manager) error {
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
-		setupLog.Error(err, "unable to set up health check")
-		os.Exit(1)
+		return err
 	}
-	if err := mgr.AddReadyzCheck("readyz", healthz.Ping); err != nil {
-		setupLog.Error(err, "unable to set up ready check")
-		os.Exit(1)
-	}
+	return mgr.AddReadyzCheck("readyz", healthz.Ping)
 }
 
-func startManager(mgr ctrl.Manager) {
+func startManager(mgr ctrl.Manager) error {
 	setupLog.Info("starting manager")
-	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
-		setupLog.Error(err, "problem running manager")
-		os.Exit(1)
-	}
+	return mgr.Start(ctrl.SetupSignalHandler())
 }

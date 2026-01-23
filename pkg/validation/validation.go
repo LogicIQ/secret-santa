@@ -153,12 +153,6 @@ func maskMapValues(obj map[string]interface{}) map[string]interface{} {
 			result[key] = maskMapValues(v)
 		case []interface{}:
 			result[key] = maskSliceValues(v)
-		case string:
-			if len(v) > 0 {
-				result[key] = "<MASKED>"
-			} else {
-				result[key] = v
-			}
 		default:
 			result[key] = "<MASKED>"
 		}
@@ -174,12 +168,6 @@ func maskSliceValues(slice []interface{}) []interface{} {
 			result[i] = maskMapValues(v)
 		case []interface{}:
 			result[i] = maskSliceValues(v)
-		case string:
-			if len(v) > 0 {
-				result[i] = "<MASKED>"
-			} else {
-				result[i] = v
-			}
 		default:
 			result[i] = "<MASKED>"
 		}

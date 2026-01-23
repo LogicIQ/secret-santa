@@ -14,18 +14,19 @@ func TestUUIDGenerator_Generate(t *testing.T) {
 		return
 	}
 
-	if _, ok := result["value"]; !ok {
+	valueStr, ok := result["value"]
+	if !ok {
 		t.Error("Generate() missing value key")
 		return
 	}
 
-	if result["value"] == "" {
+	if valueStr == "" {
 		t.Error("Generate() value is empty")
 		return
 	}
 
 	// Validate UUID format
-	parsedUUID, err := uuid.Parse(result["value"])
+	parsedUUID, err := uuid.Parse(valueStr)
 	if err != nil {
 		t.Errorf("Generate() invalid UUID format: %v", err)
 		return

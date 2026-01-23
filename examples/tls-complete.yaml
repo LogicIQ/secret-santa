@@ -5,15 +5,15 @@ metadata:
   namespace: default
 spec:
   template: |
-    private_key_pem: {{ .PrivateKey.private_key_pem | b64enc }}
-    public_key_pem: {{ .PrivateKey.public_key_pem | b64enc }}
-    public_key_openssh: {{ .PrivateKey.public_key_openssh | b64enc }}
+    private_key_pem: {{ .private-key.private_key_pem | b64enc }}
+    public_key_pem: {{ .private-key.public_key_pem | b64enc }}
+    public_key_openssh: {{ .private-key.public_key_openssh | b64enc }}
   generators:
-    - name: PrivateKey
+    - name: private-key
       type: tls_private_key
       config:
         algorithm: RSA
-        rsa_bits: 4096
+        rsa_bits: 2048
   secretType: "Opaque"
 ---
 apiVersion: secrets.secret-santa.io/v1alpha1
@@ -23,19 +23,19 @@ metadata:
   namespace: default
 spec:
   template: |
-    tls.crt: {{ .SelfSignedCert.cert_pem | b64enc }}
-    tls.key: {{ .PrivateKey.private_key_pem | b64enc }}
+    tls.crt: {{ .self-signed-cert.cert_pem | b64enc }}
+    tls.key: {{ .private-key.private_key_pem | b64enc }}
   generators:
-    - name: PrivateKey
+    - name: private-key
       type: tls_private_key
       config:
         algorithm: RSA
-        rsa_bits: 4096
-    - name: SelfSignedCert
+        rsa_bits: 2048
+    - name: self-signed-cert
       type: tls_self_signed_cert
       config:
         common_name: "example.com"
-        private_key_pem: "{{ .PrivateKey.private_key_pem }}"
+        private_key_pem: "{{ .private-key.private_key_pem }}"
         validity_period_hours: 8760
   secretType: "kubernetes.io/tls"
 ---
@@ -46,18 +46,18 @@ metadata:
   namespace: default
 spec:
   template: |
-    csr.pem: {{ .CSR.cert_request_pem | b64enc }}
-    private_key.pem: {{ .PrivateKey.private_key_pem | b64enc }}
+    csr.pem: {{ .csr.cert_request_pem | b64enc }}
+    private_key.pem: {{ .private-key.private_key_pem | b64enc }}
   generators:
-    - name: PrivateKey
+    - name: private-key
       type: tls_private_key
       config:
         algorithm: RSA
-        rsa_bits: 4096
-    - name: CSR
+        rsa_bits: 2048
+    - name: csr
       type: tls_cert_request
       config:
-        private_key_pem: "{{ .PrivateKey.private_key_pem }}"
+        private_key_pem: "{{ .private-key.private_key_pem }}"
         common_name: "example.com"
         dns_names: ["example.com", "www.example.com"]
   secretType: "Opaque"

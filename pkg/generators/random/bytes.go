@@ -15,6 +15,9 @@ func (g *BytesGenerator) Generate(config map[string]interface{}) (map[string]str
 	if length < 1 {
 		return nil, fmt.Errorf("length must be at least 1")
 	}
+	if length > 1024 {
+		return nil, fmt.Errorf("length too large, maximum 1024")
+	}
 
 	buf := make([]byte, length)
 	_, err := rand.Read(buf)

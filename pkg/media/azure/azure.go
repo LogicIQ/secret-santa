@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
@@ -25,25 +26,27 @@ type AzureKeyVaultMedia struct {
 	SecretName string
 	TenantID   string
 	client     *azsecrets.Client
+	clientOnce sync.Once
+	clientErr  error
 }
 
 func (m *AzureKeyVaultMedia) getClient(ctx context.Context) (*azsecrets.Client, error) {
-	if m.client != nil {
-		return m.client, nil
-	}
+	m.clientOnce.Do(func() {
+		cred, err := azidentity.NewDefaultAzureCredential(nil)
+		if err != nil {
+			m.clientErr = fmt.Errorf("failed to create Azure credential: %w", err)
+			return
+		}
 
-	cred, err := azidentity.NewDefaultAzureCredential(nil)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create Azure credential: %w", err)
-	}
+		client, err := azsecrets.NewClient(m.VaultURL, cred, nil)
+		if err != nil {
+			m.clientErr = fmt.Errorf("failed to create Azure Key Vault client: %w", err)
+			return
+		}
 
-	client, err := azsecrets.NewClient(m.VaultURL, cred, nil)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create Azure Key Vault client: %w", err)
-	}
-
-	m.client = client
-	return m.client, nil
+		m.client = client
+	})
+	return m.client, m.clientErr
 }
 
 func (m *AzureKeyVaultMedia) Store(ctx context.Context, secretSanta *secretsantav1alpha1.SecretSanta, data string, enableMetadata bool) error {
@@ -54,16 +57,14 @@ func (m *AzureKeyVaultMedia) Store(ctx context.Context, secretSanta *secretsanta
 
 	secretName := m.SecretName
 	if secretName == "" {
-		secretName = secretSanta.Spec.SecretName
-		if secretName == "" {
+		if secretSanta.Spec.SecretName != "" {
+			secretName = secretSanta.Spec.SecretName
+		} else {
 			secretName = secretSanta.Name
 		}
 	}
 
 	// Azure Key Vault secret names must match ^[0-9a-zA-Z-]+$
-	if secretName == "" {
-		return fmt.Errorf("secret name cannot be empty")
-	}
 	secretName = sanitizeAzureSecretName(secretName)
 	// Validate final secret name format
 	if !isValidAzureSecretName(secretName) {

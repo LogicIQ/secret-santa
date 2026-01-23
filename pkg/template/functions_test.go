@@ -55,42 +55,62 @@ func TestRemoveHyphens(t *testing.T) {
 	result := RemoveHyphens("550e8400-e29b-41d4-a716-446655440000")
 	expected := "550e8400e29b41d4a716446655440000"
 	if result != expected {
-		t.Errorf("Compact() = %s, want %s", result, expected)
+		t.Errorf("RemoveHyphens() = %s, want %s", result, expected)
 	}
 }
 
 func TestToBinary(t *testing.T) {
 	tests := []struct {
-		input    interface{}
-		expected string
+		input       interface{}
+		expected    string
+		expectError bool
 	}{
-		{5, "101"},
-		{"5", "101"},
-		{"invalid", ""},
+		{5, "101", false},
+		{"5", "101", false},
+		{"invalid", "", true},
 	}
 
 	for _, test := range tests {
-		result := ToBinary(test.input)
-		if result != test.expected {
-			t.Errorf("ToBinary(%v) = %s, want %s", test.input, result, test.expected)
+		result, err := ToBinary(test.input)
+		if test.expectError {
+			if err == nil {
+				t.Errorf("ToBinary(%v) expected error, got nil", test.input)
+			}
+		} else {
+			if err != nil {
+				t.Errorf("ToBinary(%v) unexpected error: %v", test.input, err)
+			}
+			if result != test.expected {
+				t.Errorf("ToBinary(%v) = %s, want %s", test.input, result, test.expected)
+			}
 		}
 	}
 }
 
 func TestToHex(t *testing.T) {
 	tests := []struct {
-		input    interface{}
-		expected string
+		input       interface{}
+		expected    string
+		expectError bool
 	}{
-		{255, "ff"},
-		{"255", "ff"},
-		{"invalid", ""},
+		{255, "ff", false},
+		{"255", "ff", false},
+		{"invalid", "", true},
 	}
 
 	for _, test := range tests {
-		result := ToHex(test.input)
-		if result != test.expected {
-			t.Errorf("ToHex(%v) = %s, want %s", test.input, result, test.expected)
+		result, err := ToHex(test.input)
+		if test.expectError {
+			if err == nil {
+				t.Errorf("ToHex(%v) expected error, got nil", test.input)
+			}
+		} else {
+			if err != nil {
+				t.Errorf("ToHex(%v) unexpected error: %v", test.input, err)
+			}
+			if result != test.expected {
+				t.Errorf("ToHex(%v) = %s, want %s", test.input, result, test.expected)
+			}
 		}
 	}
 }
