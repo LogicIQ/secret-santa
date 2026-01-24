@@ -249,7 +249,7 @@ func TestK8sSecretsMedia_calculateTemplateChecksum(t *testing.T) {
 	media := &K8sSecretsMedia{}
 	template := "password: {{ .pass.password }}"
 	checksum := media.calculateTemplateChecksum(template)
-	assert.Len(t, checksum, 16)
+	assert.Len(t, checksum, 64) // SHA256 hex is 64 characters
 	// Same template should produce same checksum
 	assert.Equal(t, checksum, media.calculateTemplateChecksum(template))
 }

@@ -59,8 +59,8 @@ func TestSelfSignedCertGenerator_Generate(t *testing.T) {
 			}
 
 			// Validate PEM format
-			certPEM, ok := result["cert_pem"]
-			if !ok || certPEM == "" {
+			certPEM := result["cert_pem"]
+			if certPEM == "" {
 				t.Error("Generate() missing or empty cert_pem")
 				return
 			}
@@ -76,35 +76,38 @@ func TestSelfSignedCertGenerator_Generate(t *testing.T) {
 				t.Errorf("Generate() wrong PEM type = %s, want CERTIFICATE", block.Type)
 			}
 
+			cert, err := x509.ParseCertificate(block.Bytes)
+			if err != nil {
+				t.Errorf("Failed to parse certificate: %v", err)
+				return
+			}
+
 			// Verify subject fields if provided
-			if tt.name == "with subject fields" {
-				cert, err := x509.ParseCertificate(block.Bytes)
-				if err != nil {
-					t.Errorf("Failed to parse certificate: %v", err)
-					return
+			if org, ok := tt.config["organization"].([]interface{}); ok && len(org) > 0 {
+				if orgStr, ok := org[0].(string); ok {
+					if len(cert.Subject.Organization) == 0 || cert.Subject.Organization[0] != orgStr {
+						t.Error("Certificate missing or incorrect Organization")
+					}
 				}
-				if len(cert.Subject.Organization) == 0 || cert.Subject.Organization[0] != "Test Org" {
-					t.Error("Certificate missing or incorrect Organization")
-				}
-				if len(cert.Subject.Country) == 0 || cert.Subject.Country[0] != "US" {
-					t.Error("Certificate missing or incorrect Country")
+			}
+			if country, ok := tt.config["country"].([]interface{}); ok && len(country) > 0 {
+				if countryStr, ok := country[0].(string); ok {
+					if len(cert.Subject.Country) == 0 || cert.Subject.Country[0] != countryStr {
+						t.Error("Certificate missing or incorrect Country")
+					}
 				}
 			}
 
-			// Verify multiple DNS names if provided
-			if tt.name == "with multiple dns names" {
-				cert, err := x509.ParseCertificate(block.Bytes)
-				if err != nil {
-					t.Errorf("Failed to parse certificate: %v", err)
-					return
+			// Verify DNS names if provided
+			if dnsNames, ok := tt.config["dns_names"].([]interface{}); ok {
+				if len(cert.DNSNames) != len(dnsNames) {
+					t.Errorf("Certificate has %d DNS names, want %d", len(cert.DNSNames), len(dnsNames))
 				}
-				expectedDNS := []string{"example.com", "www.example.com", "api.example.com"}
-				if len(cert.DNSNames) != len(expectedDNS) {
-					t.Errorf("Certificate has %d DNS names, want %d", len(cert.DNSNames), len(expectedDNS))
-				}
-				for i, dns := range expectedDNS {
-					if i >= len(cert.DNSNames) || cert.DNSNames[i] != dns {
-						t.Errorf("Certificate DNS name[%d] = %v, want %s", i, cert.DNSNames[i], dns)
+				for i, dns := range dnsNames {
+					if dnsStr, ok := dns.(string); ok {
+						if i >= len(cert.DNSNames) || cert.DNSNames[i] != dnsStr {
+							t.Errorf("Certificate DNS name[%d] = %v, want %s", i, cert.DNSNames[i], dnsStr)
+						}
 					}
 				}
 			}

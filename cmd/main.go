@@ -94,13 +94,13 @@ func setupLogger() {
 	dryRun := viper.GetBool("dry-run")
 
 	if logFormat != "json" && logFormat != "console" {
-		setupLog.Info("Invalid log format, defaulting to json", "provided", logFormat)
+		setupLog.Info("Invalid log format, defaulting to json", "provided", sanitizeLogValue(logFormat))
 		logFormat = "json"
 	}
 
 	validLevels := map[string]bool{"debug": true, "info": true, "warn": true, "error": true}
 	if !validLevels[logLevel] {
-		setupLog.Info("Invalid log level, defaulting to info", "provided", logLevel)
+		setupLog.Info("Invalid log level, defaulting to info", "provided", sanitizeLogValue(logLevel))
 		logLevel = "info"
 	}
 
@@ -117,8 +117,8 @@ func setupLogger() {
 	}
 
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
-	setupLog.Info("Secret Santa starting", "version", sanitizeLogValue(version), "gitHash", sanitizeLogValue(gitHash))
-	setupLog.Info("Logging configuration", "format", sanitizeLogValue(logFormat), "level", sanitizeLogValue(logLevel))
+	setupLog.Info("Secret Santa starting", "version", version, "gitHash", gitHash)
+	setupLog.Info("Logging configuration", "format", logFormat, "level", logLevel)
 	if dryRun {
 		setupLog.Info("Starting in DRY RUN mode - no secrets will be created")
 	}
@@ -147,7 +147,12 @@ func createManager(cfg *config.Config) (ctrl.Manager, error) {
 		}
 	}
 
-	return ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
+	restConfig, err := ctrl.GetConfig()
+	if err != nil {
+		return nil, err
+	}
+
+	return ctrl.NewManager(restConfig, ctrl.Options{
 		Scheme:                 scheme,
 		Metrics:                server.Options{BindAddress: cfg.MetricsBindAddress},
 		HealthProbeBindAddress: cfg.HealthProbeBindAddress,

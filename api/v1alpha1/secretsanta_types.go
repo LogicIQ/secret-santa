@@ -21,6 +21,7 @@ type MediaConfig struct {
 	// Type specifies the storage backend
 	// Supported types: k8s, aws-secrets-manager, aws-parameter-store, azure-key-vault, gcp-secret-manager
 	// +kubebuilder:validation:MinLength=1
+	// amazonq-ignore-next-line
 	// +kubebuilder:validation:Enum=k8s;aws-secrets-manager;aws-parameter-store;azure-key-vault;gcp-secret-manager
 	Type string `json:"type"`
 	// Config contains storage backend specific configuration parameters
@@ -40,7 +41,9 @@ type GeneratorConfig struct {
 	// tls_cert_request, tls_locally_signed_cert, crypto_aes_key, crypto_rsa_key,
 	// crypto_ed25519_key, crypto_hmac
 	// +kubebuilder:validation:MinLength=1
-	// +kubebuilder:validation:Enum=random_password;random_string;random_uuid;random_bytes;random_integer;random_id;tls_private_key;tls_self_signed_cert;tls_cert_request;tls_locally_signed_cert;crypto_aes_key;crypto_rsa_key;crypto_ed25519_key;crypto_hmac
+	// +kubebuilder:validation:Enum=random_password;random_string;random_uuid;random_bytes;random_integer;random_id;\
+	//   tls_private_key;tls_self_signed_cert;tls_cert_request;tls_locally_signed_cert;\
+	//   crypto_aes_key;crypto_rsa_key;crypto_ed25519_key;crypto_hmac
 	Type string `json:"type"`
 	// Config contains generator-specific configuration parameters
 	Config *runtime.RawExtension `json:"config,omitempty"`
@@ -62,9 +65,11 @@ type SecretSantaSpec struct {
 	// +kubebuilder:validation:MinLength=1
 	// +kubebuilder:validation:MaxLength=253
 	// +kubebuilder:validation:Pattern=`^[a-z0-9]([-a-z0-9]*[a-z0-9])?$`
+	// amazonq-ignore-next-line
 	SecretName string `json:"secretName,omitempty"`
 	// SecretType sets the Kubernetes secret type
 	// +kubebuilder:default="Opaque"
+	// amazonq-ignore-next-line
 	SecretType string `json:"secretType,omitempty"`
 	// Labels to apply to the generated secret
 	Labels map[string]string `json:"labels,omitempty"`

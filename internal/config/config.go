@@ -46,11 +46,11 @@ func Load() *Config {
 		HealthProbeBindAddress:  viper.GetString("health-probe-bind-address"),
 		LeaderElection:          viper.GetBool("leader-elect"),
 		MaxConcurrentReconciles: viper.GetInt("max-concurrent-reconciles"),
-		WatchNamespaces:         getStringSlice("watch-namespaces"),
-		IncludeAnnotations:      getStringSlice("include-annotations"),
-		ExcludeAnnotations:      getStringSlice("exclude-annotations"),
-		IncludeLabels:           getStringSlice("include-labels"),
-		ExcludeLabels:           getStringSlice("exclude-labels"),
+		WatchNamespaces:         getCommaSeparatedStringSlice("watch-namespaces"),
+		IncludeAnnotations:      getCommaSeparatedStringSlice("include-annotations"),
+		ExcludeAnnotations:      getCommaSeparatedStringSlice("exclude-annotations"),
+		IncludeLabels:           getCommaSeparatedStringSlice("include-labels"),
+		ExcludeLabels:           getCommaSeparatedStringSlice("exclude-labels"),
 		DryRun:                  viper.GetBool("dry-run"),
 		EnableMetadata:          viper.GetBool("enable-metadata"),
 		LogFormat:               viper.GetString("log-format"),
@@ -58,14 +58,17 @@ func Load() *Config {
 	}
 }
 
-func getStringSlice(key string) []string {
+func getCommaSeparatedStringSlice(key string) []string {
 	slice := viper.GetStringSlice(key)
 	if len(slice) == 1 && strings.Contains(slice[0], ",") {
 		parts := strings.Split(slice[0], ",")
-		for i, v := range parts {
-			parts[i] = strings.TrimSpace(v)
+		result := make([]string, 0, len(parts))
+		for _, v := range parts {
+			if trimmed := strings.TrimSpace(v); trimmed != "" {
+				result = append(result, trimmed)
+			}
 		}
-		return parts
+		return result
 	}
 	return slice
 }

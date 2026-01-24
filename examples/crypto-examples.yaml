@@ -1,3 +1,4 @@
+# amazonq-ignore-next-line
 apiVersion: secrets.secret-santa.io/v1alpha1
 kind: SecretSanta
 metadata:
@@ -15,7 +16,7 @@ spec:
         algorithm: "sha256"
         key_size: 32
         message: "webhook-payload"
-  secretType: "Opaque"
+  secretType: Opaque
 ---
 apiVersion: secrets.secret-santa.io/v1alpha1
 kind: SecretSanta
@@ -32,7 +33,7 @@ spec:
       type: crypto_aes_key
       config:
         key_size: 256
-  secretType: "Opaque"
+  secretType: Opaque
 ---
 apiVersion: secrets.secret-santa.io/v1alpha1
 kind: SecretSanta
@@ -52,4 +53,4 @@ spec:
         key_size: 2048
     - name: ED25519Key
       type: crypto_ed25519_key
-  secretType: "Opaque"
+  secretType: Opaque

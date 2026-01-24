@@ -57,32 +57,38 @@ func TestECDHKeyGenerator_Generate(t *testing.T) {
 				}
 			}
 
-			if result["curve"] != tt.curve {
-				t.Errorf("Generate() curve = %s, want %s", result["curve"], tt.curve)
+			curve := result["curve"]
+			if curve != tt.curve {
+				t.Errorf("Generate() curve = %s, want %s", curve, tt.curve)
 			}
 
-			if result["algorithm"] != "ECDH" {
-				t.Errorf("Generate() algorithm = %s, want ECDH", result["algorithm"])
+			algorithm := result["algorithm"]
+			if algorithm != "ECDH" {
+				t.Errorf("Generate() algorithm = %s, want ECDH", algorithm)
 			}
 
 			// Validate PEM format
-			privateBlock, _ := pem.Decode([]byte(result["private_key_pem"]))
+			privateKeyPem := result["private_key_pem"]
+			privateBlock, _ := pem.Decode([]byte(privateKeyPem))
 			if privateBlock == nil || privateBlock.Type != "PRIVATE KEY" {
 				t.Error("Generate() invalid private key PEM format")
 			}
 
-			publicBlock, _ := pem.Decode([]byte(result["public_key_pem"]))
+			publicKeyPem := result["public_key_pem"]
+			publicBlock, _ := pem.Decode([]byte(publicKeyPem))
 			if publicBlock == nil || publicBlock.Type != "PUBLIC KEY" {
 				t.Error("Generate() invalid public key PEM format")
 			}
 
 			// Validate base64 encoding
-			_, err = base64.StdEncoding.DecodeString(result["private_key_base64"])
+			privateKeyBase64 := result["private_key_base64"]
+			_, err = base64.StdEncoding.DecodeString(privateKeyBase64)
 			if err != nil {
 				t.Errorf("Generate() invalid private key base64: %v", err)
 			}
 
-			_, err = base64.StdEncoding.DecodeString(result["public_key_base64"])
+			publicKeyBase64 := result["public_key_base64"]
+			_, err = base64.StdEncoding.DecodeString(publicKeyBase64)
 			if err != nil {
 				t.Errorf("Generate() invalid public key base64: %v", err)
 			}

@@ -36,7 +36,7 @@ func Register(generatorType string, generator Generator) error {
 }
 
 func Get(generatorType string) (Generator, error) {
-	if generatorType == "" {
+	if strings.TrimSpace(generatorType) == "" {
 		return nil, fmt.Errorf("generator type cannot be empty")
 	}
 	globalRegistry.mu.RLock()
@@ -61,6 +61,9 @@ func GetSupportedTypes() []string {
 }
 
 func IsSupported(generatorType string) bool {
+	if strings.TrimSpace(generatorType) == "" {
+		return false
+	}
 	globalRegistry.mu.RLock()
 	defer globalRegistry.mu.RUnlock()
 

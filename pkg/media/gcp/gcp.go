@@ -9,6 +9,7 @@ import (
 
 	secretmanager "cloud.google.com/go/secretmanager/apiv1"
 	"cloud.google.com/go/secretmanager/apiv1/secretmanagerpb"
+	"google.golang.org/api/iterator"
 	"google.golang.org/api/option"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -100,9 +101,11 @@ func (m *GCPSecretManagerMedia) Store(ctx context.Context, secretSanta *secretsa
 				// Secret already has versions, skip adding new version (create-once)
 				return nil
 			}
-			if vErr.Error() != "no more items in iterator" {
+			if vErr != iterator.Done {
+				// Actual error occurred while listing versions
 				return fmt.Errorf("failed to list secret versions: %w", vErr)
 			}
+			// Iterator exhausted (no versions), continue to add version
 		} else {
 			return fmt.Errorf("failed to create secret: %w", err)
 		}

@@ -77,7 +77,7 @@ sha256: {{ .Password.value | sha256 }}`,
 		dynClient.Resource(secretSantaGVR).Namespace(namespace).Delete(delCtx, name, metav1.DeleteOptions{})
 	}()
 
-	err = wait.PollImmediate(2*time.Second, 60*time.Second, func() (bool, error) {
+	err = wait.PollUntilContextTimeout(ctx, 2*time.Second, 60*time.Second, true, func(ctx context.Context) (bool, error) {
 		_, err := client.CoreV1().Secrets(namespace).Get(ctx, name, metav1.GetOptions{})
 		if err != nil {
 			return false, nil // Continue polling on error

@@ -49,10 +49,19 @@ func getIntConfig(config map[string]interface{}, key string, defaultValue int) i
 	case int8:
 		return int(val)
 	case uint:
+		if val > uint(^uint(0)>>1) {
+			return defaultValue
+		}
 		return int(val)
 	case uint64:
+		if val > uint64(^uint(0)>>1) {
+			return defaultValue
+		}
 		return int(val)
 	case uint32:
+		if uint(val) > uint(^uint(0)>>1) {
+			return defaultValue
+		}
 		return int(val)
 	case uint16:
 		return int(val)
@@ -64,6 +73,9 @@ func getIntConfig(config map[string]interface{}, key string, defaultValue int) i
 		}
 		return int(val)
 	case float32:
+		if val >= float32(int(^uint(0)>>1)) || val <= float32(-int(^uint(0)>>1)-1) {
+			return defaultValue
+		}
 		return int(val)
 	}
 	return defaultValue

@@ -90,7 +90,14 @@ rfc3339: {{ .Timestamp.rfc3339 }}`,
 
 	err = wait.PollImmediate(2*time.Second, 60*time.Second, func() (bool, error) {
 		_, err := client.CoreV1().Secrets(namespace).Get(ctx, name, metav1.GetOptions{})
-		return err == nil, nil
+		if err != nil {
+			if strings.Contains(err.Error(), "not found") {
+				return false, nil
+			}
+			t.Logf("Error getting secret: %v", err)
+			return false, nil
+		}
+		return true, nil
 	})
 	if err != nil {
 		t.Fatalf("Secret was not created: %v", err)

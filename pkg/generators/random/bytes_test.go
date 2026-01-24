@@ -21,7 +21,7 @@ func TestBytesGenerator_Generate(t *testing.T) {
 		{
 			name: "custom length",
 			config: map[string]interface{}{
-				"length": float64(32),
+				"length": 32,
 			},
 			length: 32,
 		},
@@ -35,7 +35,7 @@ func TestBytesGenerator_Generate(t *testing.T) {
 				return
 			}
 
-			expectedKeys := []string{"value", "generatedAt"}
+			expectedKeys := []string{"value"}
 			for _, key := range expectedKeys {
 				if _, ok := result[key]; !ok {
 					t.Errorf("Generate() missing key %s", key)

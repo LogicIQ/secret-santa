@@ -61,14 +61,8 @@ func TestAzureKeyVaultMedia_SecretNameResolution(t *testing.T) {
 				},
 			}
 
-			// Test name resolution logic
-			secretName := media.SecretName
-			if secretName == "" {
-				secretName = secretSanta.Spec.SecretName
-				if secretName == "" {
-					secretName = secretSanta.Name
-				}
-			}
+			// Test name resolution using the actual method
+			secretName := media.resolveSecretName(secretSanta)
 
 			assert.Equal(t, tt.expectedName, secretName)
 		})

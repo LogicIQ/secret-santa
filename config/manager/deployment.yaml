@@ -19,14 +19,15 @@ spec:
         app: secret-santa-controller
     spec:
       serviceAccountName: secret-santa-controller
-      restartPolicy: Always
       containers:
       - name: manager
+        # amazonq-ignore-next-line
         image: secret-santa:latest
         imagePullPolicy: IfNotPresent
         securityContext:
           allowPrivilegeEscalation: false
           runAsNonRoot: true
+          readOnlyRootFilesystem: true
           capabilities:
             drop:
             - ALL

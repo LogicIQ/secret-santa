@@ -32,16 +32,6 @@ jobs:
         fi
         go version
     
-    - name: Cache Go modules
-      uses: actions/cache@v4
-      with:
-        path: |
-          ~/.cache/go-build
-          ~/go/pkg/mod
-        key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-        restore-keys: |
-          ${{ runner.os }}-go-
-    
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
     
@@ -50,6 +40,7 @@ jobs:
         VERSION: ${{ github.event.release.tag_name }}
         GIT_HASH: ${{ github.sha }}
       run: |
+        set -e
         LDFLAGS="-w -s -X main.version=${VERSION} -X main.gitHash=${GIT_HASH}"
         
         GOOS=linux GOARCH=amd64 go build -ldflags="${LDFLAGS}" -o secret-santa-linux-amd64 cmd/main.go
@@ -59,12 +50,14 @@ jobs:
     
     - name: Upload binaries
       uses: softprops/action-gh-release@v1
+      if: success()
       with:
         files: |
           secret-santa-linux-amd64
           secret-santa-linux-arm64
           secret-santa-darwin-amd64
           secret-santa-darwin-arm64
+        fail_on_unmatched_files: true
     
     - name: Login to Docker Hub
       uses: docker/login-action@v3

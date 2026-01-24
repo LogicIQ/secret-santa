@@ -113,7 +113,7 @@ spec:
   media:
     type: gcp-secret-manager
     config:
-      project_id: my-gcp-project
+      project_id: my-gcp-project  # Replace with your actual GCP project ID
       secret_name: app-secrets
   secretName: my-app-secrets  # fallback if secret_name not specified in media config
   labels:

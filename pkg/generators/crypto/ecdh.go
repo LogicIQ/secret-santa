@@ -25,7 +25,7 @@ func (g *ECDHKeyGenerator) Generate(config map[string]interface{}) (map[string]s
 	case "X25519":
 		ecdhCurve = ecdh.X25519()
 	default:
-		return nil, fmt.Errorf("unsupported curve: %s", curve)
+		return nil, fmt.Errorf("unsupported curve: %s, supported curves are: P256, P384, P521, X25519", curve)
 	}
 
 	// Generate ECDH key pair

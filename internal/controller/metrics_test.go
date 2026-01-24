@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"os"
 	"testing"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -10,5 +11,5 @@ import (
 func TestMain(m *testing.M) {
 	// Use a separate registry for tests to avoid conflicts
 	metrics.Registry = prometheus.NewRegistry()
-	m.Run()
+	os.Exit(m.Run())
 }

@@ -102,7 +102,8 @@ spec:
     {{- if eq .UUID.version "4" }}
     uuid_type: "random"
     {{- end }}
-    uuid_valid: {{ regexMatch "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$" .UUID.value }}
+    {{- $uuidV4Pattern := "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$" }}
+    uuid_valid: {{ regexMatch $uuidV4Pattern .UUID.value }}
   generators:
     - name: Password
       type: random_password

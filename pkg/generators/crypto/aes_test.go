@@ -55,8 +55,8 @@ func TestAESKeyGenerator_Generate(t *testing.T) {
 			}
 
 			// Validate base64 key length
-			keyBase64, ok := result["key_base64"]
-			if !ok || keyBase64 == "" {
+			keyBase64 := result["key_base64"]
+			if keyBase64 == "" {
 				t.Error("Generate() key_base64 is missing or empty")
 				return
 			}
@@ -70,8 +70,8 @@ func TestAESKeyGenerator_Generate(t *testing.T) {
 			}
 
 			// Validate hex key length
-			keyHex, ok := result["key_hex"]
-			if !ok || keyHex == "" {
+			keyHex := result["key_hex"]
+			if keyHex == "" {
 				t.Error("Generate() key_hex is missing or empty")
 				return
 			}

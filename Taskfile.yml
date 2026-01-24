@@ -32,7 +32,8 @@ tasks:
   go:manifests:
     desc: Generate CRD manifests
     cmds:
-      - export PATH=$PATH:$(go env GOPATH)/bin && controller-gen crd rbac:roleName=manager-role webhook paths="./..." output:crd:artifacts:config=config/crd/bases
+      - export PATH=$PATH:$(go env GOPATH)/bin
+      - controller-gen crd rbac:roleName=manager-role webhook paths="./..." output:crd:artifacts:config=config/crd/bases
 
   docker:build:
     desc: Build Docker image
@@ -72,5 +73,6 @@ tasks:
 
   e2e:cleanup:
     desc: Cleanup e2e environment
+    # amazonq-ignore-next-line
     cmds:
       - kind delete cluster --name=secret-santa-e2e || echo "Failed to delete cluster"

@@ -25,6 +25,9 @@ func getIntConfig(config map[string]interface{}, key string, defaultValue int) i
 		return val
 	}
 	if val, ok := config[key].(float64); ok {
+		if val >= float64(int(^uint(0)>>1)) || val <= float64(-int(^uint(0)>>1)-1) {
+			return defaultValue
+		}
 		return int(val)
 	}
 	return defaultValue

@@ -8,7 +8,7 @@ import (
 
 type ChaCha20KeyGenerator struct{}
 
-func generateChaCha20Key(algorithm string) (map[string]string, error) {
+func generateStreamCipherKey(algorithm string) (map[string]string, error) {
 	key := make([]byte, 32)
 	if _, err := rand.Read(key); err != nil {
 		return nil, err
@@ -24,12 +24,12 @@ func generateChaCha20Key(algorithm string) (map[string]string, error) {
 
 func (g *ChaCha20KeyGenerator) Generate(config map[string]interface{}) (map[string]string, error) {
 	// config is unused but required by Generator interface
-	return generateChaCha20Key("ChaCha20")
+	return generateStreamCipherKey("ChaCha20")
 }
 
 type XChaCha20KeyGenerator struct{}
 
 func (g *XChaCha20KeyGenerator) Generate(config map[string]interface{}) (map[string]string, error) {
 	// config is unused but required by Generator interface
-	return generateChaCha20Key("XChaCha20")
+	return generateStreamCipherKey("XChaCha20")
 }

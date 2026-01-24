@@ -43,32 +43,62 @@ func TestRSAKeyGenerator_Generate(t *testing.T) {
 				}
 			}
 
-			if keySize := result["key_size"]; keySize != tt.keySize {
+			keySize, ok := result["key_size"]
+			if !ok {
+				t.Error("Generate() missing key_size key")
+				return
+			}
+			if keySize != tt.keySize {
 				t.Errorf("Generate() key_size = %s, want %s", keySize, tt.keySize)
 			}
 
-			if algorithm := result["algorithm"]; algorithm != "RSA" {
+			algorithm, ok := result["algorithm"]
+			if !ok {
+				t.Error("Generate() missing algorithm key")
+				return
+			}
+			if algorithm != "RSA" {
 				t.Errorf("Generate() algorithm = %s, want RSA", algorithm)
 			}
 
 			// Validate PEM format
-			privateBlock, _ := pem.Decode([]byte(result["private_key_pem"]))
+			privateKeyPem, ok := result["private_key_pem"]
+			if !ok {
+				t.Error("Generate() missing private_key_pem key")
+				return
+			}
+			privateBlock, _ := pem.Decode([]byte(privateKeyPem))
 			if privateBlock == nil || privateBlock.Type != "PRIVATE KEY" {
 				t.Error("Generate() invalid private key PEM format")
 			}
 
-			publicBlock, _ := pem.Decode([]byte(result["public_key_pem"]))
+			publicKeyPem, ok := result["public_key_pem"]
+			if !ok {
+				t.Error("Generate() missing public_key_pem key")
+				return
+			}
+			publicBlock, _ := pem.Decode([]byte(publicKeyPem))
 			if publicBlock == nil || publicBlock.Type != "PUBLIC KEY" {
 				t.Error("Generate() invalid public key PEM format")
 			}
 
 			// Validate base64 encoding
-			_, err = base64.StdEncoding.DecodeString(result["private_key_base64"])
+			privateKeyBase64, ok := result["private_key_base64"]
+			if !ok {
+				t.Error("Generate() missing private_key_base64 key")
+				return
+			}
+			_, err = base64.StdEncoding.DecodeString(privateKeyBase64)
 			if err != nil {
 				t.Errorf("Generate() invalid private key base64: %v", err)
 			}
 
-			_, err = base64.StdEncoding.DecodeString(result["public_key_base64"])
+			publicKeyBase64, ok := result["public_key_base64"]
+			if !ok {
+				t.Error("Generate() missing public_key_base64 key")
+				return
+			}
+			_, err = base64.StdEncoding.DecodeString(publicKeyBase64)
 			if err != nil {
 				t.Errorf("Generate() invalid public key base64: %v", err)
 			}
@@ -89,7 +119,19 @@ func TestRSAKeyGenerator_Generate(t *testing.T) {
 			return
 		}
 
-		if result1["private_key_pem"] == result2["private_key_pem"] {
+		privateKeyPem1, ok := result1["private_key_pem"]
+		if !ok {
+			t.Error("Generate() first result missing private_key_pem key")
+			return
+		}
+
+		privateKeyPem2, ok := result2["private_key_pem"]
+		if !ok {
+			t.Error("Generate() second result missing private_key_pem key")
+			return
+		}
+
+		if privateKeyPem1 == privateKeyPem2 {
 			t.Error("Generate() should produce different keys on each call")
 		}
 	})

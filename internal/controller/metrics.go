@@ -18,16 +18,16 @@ func RecordSecretSkipped(name, namespace string) {
 	metrics.RecordSecretSkipped(name, namespace)
 }
 
-func RecordReconcileError(name, namespace, reason string) {
-	metrics.RecordReconcileError(name, namespace, reason)
+func RecordReconcileError(name, namespace string) {
+	metrics.RecordReconcileError(name, namespace)
 }
 
-func RecordTemplateValidationError(name, namespace string) {
-	metrics.RecordTemplateValidationError(name, namespace)
+func RecordTemplateValidationFailed(name, namespace string) {
+	metrics.RecordTemplateValidationFailed(name, namespace)
 }
 
-func RecordSecretGenerated(name, namespace string) {
-	metrics.RecordSecretGenerated(name, namespace)
+func RecordSuccessfulGeneration(name, namespace string) {
+	metrics.RecordSuccessfulGeneration(name, namespace)
 }
 
 func UpdateSecretInstances(name, namespace string, count float64) {

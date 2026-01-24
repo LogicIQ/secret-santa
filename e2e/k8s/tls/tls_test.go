@@ -78,6 +78,7 @@ tls.key: {{ .PrivateKey.private_key_pem | b64enc }}`,
 						"name": "TLSCert",
 						"type": "tls_self_signed_cert",
 						"config": map[string]interface{}{
+							"key_pem":     "{{ .PrivateKey.private_key_pem }}",
 							"common_name": "test.example.com",
 						},
 					},

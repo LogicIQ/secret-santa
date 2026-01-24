@@ -10,10 +10,31 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/dynamic"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
 )
+
+var secretSantaGVR = schema.GroupVersionResource{
+	Group:    "secrets.secret-santa.io",
+	Version:  "v1alpha1",
+	Resource: "secretsantas",
+}
+
+func setupDynamicClient(t *testing.T) dynamic.Interface {
+	cfg, err := config.GetConfig()
+	if err != nil {
+		t.Fatalf("Failed to get config: %v", err)
+	}
+
+	dynClient, err := dynamic.NewForConfig(cfg)
+	if err != nil {
+		t.Fatalf("Failed to create dynamic client: %v", err)
+	}
+
+	return dynClient
+}
 
 func TestTemplateValidationErrors(t *testing.T) {
 	tests := []struct {
@@ -22,6 +43,7 @@ func TestTemplateValidationErrors(t *testing.T) {
 		generators     []interface{}
 		expectedError  string
 		expectedStatus string
+		skip           bool
 	}{
 		{
 			name:     "malformed template syntax",
@@ -63,6 +85,7 @@ func TestTemplateValidationErrors(t *testing.T) {
 			},
 			expectedError:  "generator name cannot be empty",
 			expectedStatus: "DryRunFailed",
+			skip:           true,
 		},
 		{
 			name:     "missing generator type",
@@ -77,6 +100,7 @@ func TestTemplateValidationErrors(t *testing.T) {
 			},
 			expectedError:  "generator type cannot be empty",
 			expectedStatus: "DryRunFailed",
+			skip:           true,
 		},
 		{
 			name:     "template references non-existent generator",
@@ -96,21 +120,12 @@ func TestTemplateValidationErrors(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		// Skip tests that should fail at CRD validation level
-		if tt.name == "missing generator name" || tt.name == "missing generator type" {
+		if tt.skip {
 			t.Skipf("Test '%s' correctly fails at CRD validation level", tt.name)
 			continue
 		}
 		t.Run(tt.name, func(t *testing.T) {
-			cfg, err := config.GetConfig()
-			if err != nil {
-				t.Fatalf("Failed to get config: %v", err)
-			}
-
-			dynClient, err := dynamic.NewForConfig(cfg)
-			if err != nil {
-				t.Fatalf("Failed to create dynamic client: %v", err)
-			}
+			dynClient := setupDynamicClient(t)
 
 			namespace := "default"
 			name := "template-error-" + strings.ReplaceAll(tt.name, " ", "-")
@@ -183,15 +198,7 @@ func TestTemplateValidationErrors(t *testing.T) {
 }
 
 func TestInvalidGeneratorConfig(t *testing.T) {
-	cfg, err := config.GetConfig()
-	if err != nil {
-		t.Fatalf("Failed to get config: %v", err)
-	}
-
-	dynClient, err := dynamic.NewForConfig(cfg)
-	if err != nil {
-		t.Fatalf("Failed to create dynamic client: %v", err)
-	}
+	dynClient := setupDynamicClient(t)
 
 	namespace := "default"
 	name := "invalid-generator-config-test"

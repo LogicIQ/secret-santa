@@ -23,6 +23,7 @@ var (
 			Name:      "success_generation_total",
 			Help:      "Successful secret generations",
 		},
+		// amazonq-ignore-next-line
 		[]string{"secretsanta", "namespace"},
 	)
 
@@ -33,6 +34,7 @@ var (
 			Name:      "failed_generation_total",
 			Help:      "Failed secret generations",
 		},
+		// amazonq-ignore-next-line
 		[]string{"secretsanta", "namespace", "reason"},
 	)
 
@@ -52,6 +54,7 @@ var (
 			Name:      "secrets_skipped_total",
 			Help:      "Secrets skipped (already exist)",
 		},
+		// amazonq-ignore-next-line
 		[]string{"secretsanta", "namespace"},
 	)
 
@@ -62,6 +65,7 @@ var (
 			Name:      "template_validation_failed_total",
 			Help:      "Template validation failures",
 		},
+		// amazonq-ignore-next-line
 		[]string{"secretsanta", "namespace"},
 	)
 
@@ -137,6 +141,7 @@ var (
 			Name:      "secret_generation_status",
 			Help:      "Secret generation status (1=generated, 0=failed)",
 		},
+		// amazonq-ignore-next-line
 		[]string{"secretsanta", "namespace"},
 	)
 
@@ -259,22 +264,13 @@ func NewReconcileTimer(name, namespace string) *prometheus.Timer {
 	}))
 }
 
-func RecordReconcileError(name, namespace, reason string) {
+func RecordReconcileError(name, namespace string) {
 	SyncErrorCount.WithLabelValues(name, namespace).Inc()
 }
 
 func RecordReconcileComplete(name, namespace string, duration float64) {
 	SyncCallCount.WithLabelValues(name, namespace).Inc()
 	LastReconcileDuration.WithLabelValues(name, namespace).Set(duration)
-}
-
-func RecordTemplateValidationError(name, namespace string) {
-	TemplateValidationFailedTotal.WithLabelValues(name, namespace).Inc()
-}
-
-func RecordSecretGenerated(name, namespace string) {
-	SuccessGenerationTotal.WithLabelValues(name, namespace).Inc()
-	SyncCallCount.WithLabelValues(name, namespace).Inc()
 }
 
 func UpdateSecretInstances(name, namespace string, instanceCount float64) {

@@ -168,7 +168,7 @@ func TestConfig_StructFields(t *testing.T) {
 	assert.Equal(t, "debug", cfg.LogLevel)
 }
 
-func TestGetStringSlice(t *testing.T) {
+func TestGetCommaSeparatedStringSlice(t *testing.T) {
 	tests := []struct {
 		name     string
 		key      string
@@ -205,7 +205,7 @@ func TestGetStringSlice(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			viper.Reset()
 			viper.Set(tt.key, tt.value)
-			result := getStringSlice(tt.key)
+			result := getCommaSeparatedStringSlice(tt.key)
 			assert.Equal(t, tt.expected, result)
 		})
 	}

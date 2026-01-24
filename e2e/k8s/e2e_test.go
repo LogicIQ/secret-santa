@@ -29,10 +29,7 @@ var (
 	pollTimeout  = 60 * time.Second
 )
 
-func TestE2ERandomPassword(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
-	defer cancel()
-
+func setupClients(t *testing.T) (*kubernetes.Clientset, dynamic.Interface) {
 	cfg, err := config.GetConfig()
 	if err != nil {
 		t.Fatalf("Failed to get config: %v", err)
@@ -47,6 +44,15 @@ func TestE2ERandomPassword(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create dynamic client: %v", err)
 	}
+
+	return client, dynClient
+}
+
+func TestE2ERandomPassword(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+
+	client, dynClient := setupClients(t)
 
 	namespace := "default"
 	name := "e2e-password-test"
@@ -80,7 +86,7 @@ sha256: {{ .Password.value | sha256 }}`,
 		},
 	}
 
-	_, err = dynClient.Resource(secretSantaGVR).Namespace(namespace).Create(ctx, secretSanta, metav1.CreateOptions{})
+	_, err := dynClient.Resource(secretSantaGVR).Namespace(namespace).Create(ctx, secretSanta, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("Failed to create SecretSanta: %v", err)
 	}
@@ -111,7 +117,11 @@ sha256: {{ .Password.value | sha256 }}`,
 		t.Errorf("Expected secret type Opaque, got %s", secret.Type)
 	}
 
-	data := string(secret.Data["data"])
+	dataBytes, exists := secret.Data["data"]
+	if !exists {
+		t.Fatal("Secret data key not found")
+	}
+	data := string(dataBytes)
 	if len(data) == 0 {
 		t.Error("Secret data is empty")
 	}
@@ -138,20 +148,7 @@ func TestE2EMultipleGenerators(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
 
-	cfg, err := config.GetConfig()
-	if err != nil {
-		t.Fatalf("Failed to get config: %v", err)
-	}
-
-	client, err := kubernetes.NewForConfig(cfg)
-	if err != nil {
-		t.Fatalf("Failed to create client: %v", err)
-	}
-
-	dynClient, err := dynamic.NewForConfig(cfg)
-	if err != nil {
-		t.Fatalf("Failed to create dynamic client: %v", err)
-	}
+	client, dynClient := setupClients(t)
 
 	namespace := "default"
 	name := "e2e-multi-test"
@@ -206,7 +203,7 @@ port_hex: {{ .Port.value | toHex }}`,
 		},
 	}
 
-	_, err = dynClient.Resource(secretSantaGVR).Namespace(namespace).Create(ctx, secretSanta, metav1.CreateOptions{})
+	_, err := dynClient.Resource(secretSantaGVR).Namespace(namespace).Create(ctx, secretSanta, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("Failed to create SecretSanta: %v", err)
 	}
@@ -233,7 +230,11 @@ port_hex: {{ .Port.value | toHex }}`,
 		t.Fatalf("Failed to get secret: %v", err)
 	}
 
-	data := string(secret.Data["data"])
+	dataBytes, exists := secret.Data["data"]
+	if !exists {
+		t.Fatal("Secret data key not found")
+	}
+	data := string(dataBytes)
 
 	// Verify all generators worked
 	expectedFields := []string{"password:", "api_key:", "uuid:", "uuid_compact:", "port:", "port_hex:"}

@@ -16,4 +16,5 @@ tasks:
   cleanup:
     desc: Cleanup e2e environment
     cmds:
+      # amazonq-ignore-next-line
       - kind delete cluster --name=secret-santa-e2e || true

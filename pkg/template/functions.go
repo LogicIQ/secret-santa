@@ -65,32 +65,29 @@ func RemoveHyphens(s string) string {
 	return strings.ReplaceAll(s, "-", "")
 }
 
-func ToBinary(i interface{}) (string, error) {
+func toInt(i interface{}) (int, error) {
 	switch v := i.(type) {
 	case int:
-		return fmt.Sprintf("%b", v), nil
+		return v, nil
 	case string:
-		num, err := strconv.Atoi(v)
-		if err != nil {
-			return "", fmt.Errorf("failed to convert string to binary: %w", err)
-		}
-		return fmt.Sprintf("%b", num), nil
+		return strconv.Atoi(v)
 	default:
-		return "", fmt.Errorf("unsupported type for binary conversion: %T", i)
+		return 0, fmt.Errorf("unsupported type: %T", i)
 	}
 }
 
-func ToHex(i interface{}) (string, error) {
-	switch v := i.(type) {
-	case int:
-		return fmt.Sprintf("%x", v), nil
-	case string:
-		num, err := strconv.Atoi(v)
-		if err != nil {
-			return "", fmt.Errorf("failed to convert string to hex: %w", err)
-		}
-		return fmt.Sprintf("%x", num), nil
-	default:
-		return "", fmt.Errorf("unsupported type for hex conversion: %T", i)
+func ToBinary(i interface{}) (string, error) {
+	num, err := toInt(i)
+	if err != nil {
+		return "", fmt.Errorf("failed to convert to binary: %w", err)
 	}
+	return fmt.Sprintf("%b", num), nil
+}
+
+func ToHex(i interface{}) (string, error) {
+	num, err := toInt(i)
+	if err != nil {
+		return "", fmt.Errorf("failed to convert to hex: %w", err)
+	}
+	return fmt.Sprintf("%x", num), nil
 }

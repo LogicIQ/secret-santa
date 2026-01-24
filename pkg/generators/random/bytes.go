@@ -4,7 +4,6 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"fmt"
-	"time"
 )
 
 type BytesGenerator struct{}
@@ -26,7 +25,6 @@ func (g *BytesGenerator) Generate(config map[string]interface{}) (map[string]str
 	}
 
 	return map[string]string{
-		"value":       base64.StdEncoding.EncodeToString(buf),
-		"generatedAt": time.Now().UTC().Format(time.RFC3339),
+		"value": base64.StdEncoding.EncodeToString(buf),
 	}, nil
 }

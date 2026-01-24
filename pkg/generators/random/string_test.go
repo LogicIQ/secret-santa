@@ -15,14 +15,14 @@ func TestStringGenerator_Generate(t *testing.T) {
 		{
 			name:   "default config",
 			config: map[string]interface{}{},
-			want:   []string{"value", "charset", "generatedAt"},
+			want:   []string{"value", "charset"},
 		},
 		{
 			name: "custom length",
 			config: map[string]interface{}{
 				"length": 64,
 			},
-			want: []string{"value", "charset", "generatedAt"},
+			want: []string{"value", "charset"},
 		},
 	}
 

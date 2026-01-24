@@ -70,9 +70,10 @@ func (g *SelfSignedCertGenerator) Generate(config map[string]interface{}) (map[s
 	}
 
 	// Encode private key
+	privateKeyBytes := x509.MarshalPKCS1PrivateKey(privateKey)
 	privateKeyPEM := pem.EncodeToMemory(&pem.Block{
 		Type:  "RSA PRIVATE KEY",
-		Bytes: x509.MarshalPKCS1PrivateKey(privateKey),
+		Bytes: privateKeyBytes,
 	})
 	if privateKeyPEM == nil {
 		return nil, fmt.Errorf("failed to encode private key to PEM")

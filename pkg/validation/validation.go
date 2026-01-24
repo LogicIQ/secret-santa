@@ -19,6 +19,24 @@ var (
 		regexp.MustCompile(`'([^']{8,})'`),
 	}
 	separatorPattern = regexp.MustCompile(`[:=]`)
+	yamlPattern      = regexp.MustCompile(`^\s*[a-zA-Z_][a-zA-Z0-9_-]*\s*:\s*.+$`)
+
+	dangerousPatterns = []*regexp.Regexp{
+		regexp.MustCompile(`{{\.}}`),
+		regexp.MustCompile(`{{\s*range\s+\.\s*}}`),
+		regexp.MustCompile(`{{\s*with\s+\.\s*}}`),
+		regexp.MustCompile(`{{.*call.*}}`),
+		regexp.MustCompile(`{{.*js.*}}`),
+		regexp.MustCompile(`{{.*urlquery.*}}`),
+	}
+	dangerousPatternMessages = []string{
+		"direct root context access is not allowed",
+		"ranging over root context is not allowed",
+		"with root context is not allowed",
+		"call function is not allowed",
+		"js function is not allowed",
+		"urlquery function is not allowed",
+	}
 )
 
 func ValidateTemplate(tmplStr string) error {
@@ -27,21 +45,9 @@ func ValidateTemplate(tmplStr string) error {
 	}
 
 	// Check for dangerous patterns that could lead to code injection
-	dangerousPatterns := []struct {
-		pattern string
-		message string
-	}{
-		{`{{\.}}`, "direct root context access is not allowed"},
-		{`{{\s*range\s+\.\s*}}`, "ranging over root context is not allowed"},
-		{`{{\s*with\s+\.\s*}}`, "with root context is not allowed"},
-		{`{{.*call.*}}`, "call function is not allowed"},
-		{`{{.*js.*}}`, "js function is not allowed"},
-		{`{{.*urlquery.*}}`, "urlquery function is not allowed"},
-	}
-
-	for _, dp := range dangerousPatterns {
-		if matched, _ := regexp.MatchString(dp.pattern, tmplStr); matched {
-			return fmt.Errorf("template validation failed: %s", dp.message)
+	for i, pattern := range dangerousPatterns {
+		if pattern.MatchString(tmplStr) {
+			return fmt.Errorf("template validation failed: %s", dangerousPatternMessages[i])
 		}
 	}
 
@@ -88,11 +94,26 @@ func MaskSensitiveData(data string) string {
 		return maskJSONData(data)
 	}
 
-	if strings.Contains(data, ":") && !strings.Contains(data, "{") {
+	if isYAMLFormat(data) {
 		return maskYAMLData(data)
 	}
 
 	return maskGenericData(data)
+}
+
+func isYAMLFormat(data string) bool {
+	lines := strings.Split(data, "\n")
+	yamlLineCount := 0
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" || strings.HasPrefix(trimmed, "#") {
+			continue
+		}
+		if yamlPattern.MatchString(line) {
+			yamlLineCount++
+		}
+	}
+	return yamlLineCount > 0
 }
 
 func maskJSONData(data string) string {
@@ -116,7 +137,8 @@ func maskYAMLData(data string) string {
 		if strings.Contains(line, ":") && !strings.HasPrefix(strings.TrimSpace(line), "#") {
 			parts := strings.SplitN(line, ":", 2)
 			if len(parts) == 2 && strings.TrimSpace(parts[1]) != "" {
-				indent := strings.Repeat(" ", len(line)-len(strings.TrimLeft(line, " ")))
+				trimmed := strings.TrimLeft(line, " \t")
+				indent := line[:len(line)-len(trimmed)]
 				lines[i] = fmt.Sprintf("%s%s: <MASKED>", indent, strings.TrimSpace(parts[0]))
 			}
 		}

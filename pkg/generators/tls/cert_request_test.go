@@ -68,7 +68,8 @@ func TestCertRequestGenerator_Generate(t *testing.T) {
 			}
 
 			// Validate CSR PEM format
-			block, _ := pem.Decode([]byte(result["cert_request_pem"]))
+			certRequestPEM := result["cert_request_pem"]
+			block, _ := pem.Decode([]byte(certRequestPEM))
 			if block == nil {
 				t.Error("Generate() invalid CSR PEM")
 			}
@@ -82,8 +83,13 @@ func TestCertRequestGenerator_Generate(t *testing.T) {
 				t.Errorf("Generate() failed to parse CSR: %v", err)
 			}
 
-			if csr.Subject.CommonName != tt.config["common_name"] {
-				t.Errorf("Generate() CSR common name = %s, want %s", csr.Subject.CommonName, tt.config["common_name"])
+			commonName, ok := tt.config["common_name"].(string)
+			if !ok {
+				t.Error("Generate() common_name is not a string")
+				return
+			}
+			if csr.Subject.CommonName != commonName {
+				t.Errorf("Generate() CSR common name = %s, want %s", csr.Subject.CommonName, commonName)
 			}
 		})
 	}

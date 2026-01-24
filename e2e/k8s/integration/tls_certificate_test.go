@@ -66,8 +66,7 @@ tls.crt: {{ .TLSCert.cert_pem }}`,
 						"name": "TLSCert",
 						"type": "tls_self_signed_cert",
 						"config": map[string]interface{}{
-							"key_algorithm": "RSA",
-							"rsa_bits":      float64(2048),
+							"key_pem": "{{ .TLSKey.private_key_pem }}",
 							"subject": map[string]interface{}{
 								"common_name": "example.com",
 							},
@@ -90,8 +89,10 @@ tls.crt: {{ .TLSCert.cert_pem }}`,
 		}
 	}()
 
-	err = wait.PollImmediate(2*time.Second, 60*time.Second, func() (bool, error) {
-		_, err := client.CoreV1().Secrets(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+	ctx := context.TODO()
+
+	err = wait.PollUntilContextTimeout(ctx, 2*time.Second, 60*time.Second, true, func(ctx context.Context) (bool, error) {
+		_, err := client.CoreV1().Secrets(namespace).Get(ctx, name, metav1.GetOptions{})
 		return err == nil, nil
 	})
 	if err != nil {

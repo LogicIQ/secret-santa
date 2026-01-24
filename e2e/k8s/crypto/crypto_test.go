@@ -24,6 +24,9 @@ var (
 		Version:  "v1alpha1",
 		Resource: "secretsanta",
 	}
+
+	testTimeout      = 60 * time.Second
+	testPollInterval = 2 * time.Second
 )
 
 func setupClients(t *testing.T) (kubernetes.Interface, dynamic.Interface) {
@@ -48,6 +51,7 @@ func setupClients(t *testing.T) (kubernetes.Interface, dynamic.Interface) {
 func TestCryptoGenerators(t *testing.T) {
 	client, dynClient := setupClients(t)
 
+	// amazonq-ignore-next-line
 	namespace := "default"
 	name := "test-crypto-keys"
 
@@ -94,7 +98,7 @@ hmac_signature: {{ .HMAC.signature_hex }}`,
 	defer dynClient.Resource(secretSantaGVR).Namespace(namespace).Delete(context.TODO(), name, metav1.DeleteOptions{})
 
 	// Wait for secret to be created
-	err = wait.PollImmediate(2*time.Second, 60*time.Second, func() (bool, error) {
+	err = wait.PollImmediate(testPollInterval, testTimeout, func() (bool, error) {
 		_, err := client.CoreV1().Secrets(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 		return err == nil, nil
 	})
@@ -234,7 +238,7 @@ ecdh_public_key: {{ .ECDHKey.public_key }}`,
 	}
 	defer dynClient.Resource(secretSantaGVR).Namespace(namespace).Delete(context.TODO(), name, metav1.DeleteOptions{})
 
-	err = wait.PollImmediate(2*time.Second, 60*time.Second, func() (bool, error) {
+	err = wait.PollImmediate(testPollInterval, testTimeout, func() (bool, error) {
 		_, err := client.CoreV1().Secrets(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 		return err == nil, nil
 	})

@@ -134,7 +134,7 @@ func (r *SecretSantaReconciler) reconcileSecret(ctx context.Context, secretSanta
 	// Validate generators first
 	if err := validation.ValidateGeneratorConfigs(secretSanta.Spec.Generators); err != nil {
 		log.Error(err, "Generator validation failed")
-		RecordReconcileError(secretSanta.Name, secretSanta.Namespace, "generator_validation_failed")
+		RecordReconcileError(secretSanta.Name, secretSanta.Namespace)
 		if updateErr := r.updateStatus(ctx, secretSanta, "DryRunFailed", "False", err.Error()); updateErr != nil {
 			log.Error(updateErr, "Failed to update status")
 		}
@@ -144,17 +144,17 @@ func (r *SecretSantaReconciler) reconcileSecret(ctx context.Context, secretSanta
 	templateData, err := r.generateTemplateData(secretSanta.Spec.Generators)
 	if err != nil {
 		log.Error(err, "Failed to generate template data")
-		RecordReconcileError(secretSanta.Name, secretSanta.Namespace, "generator_failed")
+		RecordReconcileError(secretSanta.Name, secretSanta.Namespace)
 		if updateErr := r.updateStatus(ctx, secretSanta, "GeneratorFailed", "False", err.Error()); updateErr != nil {
 			log.Error(updateErr, "Failed to update status")
 		}
-		return ctrl.Result{}, nil
+		return ctrl.Result{}, err
 	}
 	log.V(1).Info("Template data generated", "generators", len(secretSanta.Spec.Generators))
 
 	if err := r.validateTemplate(secretSanta.Spec.Template); err != nil {
 		log.Error(err, "Template validation failed")
-		RecordTemplateValidationError(secretSanta.Name, secretSanta.Namespace)
+		RecordTemplateValidationFailed(secretSanta.Name, secretSanta.Namespace)
 		if updateErr := r.updateStatus(ctx, secretSanta, "TemplateFailed", "False", err.Error()); updateErr != nil {
 			log.Error(updateErr, "Failed to update status")
 		}
@@ -167,7 +167,7 @@ func (r *SecretSantaReconciler) reconcileSecret(ctx context.Context, secretSanta
 		if updateErr := r.updateStatus(ctx, secretSanta, "TemplateExecutionFailed", "False", err.Error()); updateErr != nil {
 			log.Error(updateErr, "Failed to update status")
 		}
-		return ctrl.Result{}, nil
+		return ctrl.Result{}, err
 	}
 	log.V(1).Info("Template executed successfully", "dataSize", len(secretData))
 
@@ -193,7 +193,7 @@ func (r *SecretSantaReconciler) storeSecret(ctx context.Context, secretSanta *se
 		return ctrl.Result{}, err
 	}
 
-	RecordSecretGenerated(secretSanta.Name, secretSanta.Namespace)
+	RecordSuccessfulGeneration(secretSanta.Name, secretSanta.Namespace)
 	UpdateSecretInstances(secretSanta.Name, secretSanta.Namespace, 1)
 	if updateErr := r.updateStatus(ctx, secretSanta, "Ready", "True", "Secret stored successfully"); updateErr != nil {
 		log.Error(updateErr, "Failed to update status")

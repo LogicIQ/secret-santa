@@ -17,8 +17,14 @@ import (
 
 var (
 	azureSecretNameInvalidCharsRegex = regexp.MustCompile(`[^0-9a-zA-Z-]`)
-	azureSecretNameValidRegex        = regexp.MustCompile(`^[0-9a-zA-Z-]+$`)
+	azureSecretNameValidRegex        = regexp.MustCompile(`^[0-9a-zA-Z]([0-9a-zA-Z-]*[0-9a-zA-Z])?$`)
 )
+
+func init() {
+	if azureSecretNameInvalidCharsRegex == nil || azureSecretNameValidRegex == nil {
+		panic("failed to compile Azure secret name regex patterns")
+	}
+}
 
 // AzureKeyVaultMedia stores secrets in Azure Key Vault
 type AzureKeyVaultMedia struct {
@@ -55,14 +61,7 @@ func (m *AzureKeyVaultMedia) Store(ctx context.Context, secretSanta *secretsanta
 		return err
 	}
 
-	secretName := m.SecretName
-	if secretName == "" {
-		if secretSanta.Spec.SecretName != "" {
-			secretName = secretSanta.Spec.SecretName
-		} else {
-			secretName = secretSanta.Name
-		}
-	}
+	secretName := m.resolveSecretName(secretSanta)
 
 	// Azure Key Vault secret names must match ^[0-9a-zA-Z-]+$
 	secretName = sanitizeAzureSecretName(secretName)
@@ -111,6 +110,17 @@ func (m *AzureKeyVaultMedia) GetType() string {
 	return "azure-key-vault"
 }
 
+// resolveSecretName determines the secret name to use based on media config and SecretSanta spec
+func (m *AzureKeyVaultMedia) resolveSecretName(secretSanta *secretsantav1alpha1.SecretSanta) string {
+	if m.SecretName != "" {
+		return m.SecretName
+	}
+	if secretSanta.Spec.SecretName != "" {
+		return secretSanta.Spec.SecretName
+	}
+	return secretSanta.Name
+}
+
 // getGeneratorTypes extracts generator types from the configuration
 func (m *AzureKeyVaultMedia) getGeneratorTypes(generators []secretsantav1alpha1.GeneratorConfig) string {
 	types := make([]string, len(generators))
@@ -128,10 +138,13 @@ func (m *AzureKeyVaultMedia) calculateTemplateChecksum(template string) string {
 
 // sanitizeAzureSecretName replaces all invalid characters with hyphens
 func sanitizeAzureSecretName(name string) string {
-	return azureSecretNameInvalidCharsRegex.ReplaceAllString(name, "-")
+	sanitized := azureSecretNameInvalidCharsRegex.ReplaceAllString(name, "-")
+	sanitized = regexp.MustCompile(`-+`).ReplaceAllString(sanitized, "-")
+	sanitized = strings.Trim(sanitized, "-")
+	return sanitized
 }
 
 // isValidAzureSecretName validates Azure Key Vault secret name format
 func isValidAzureSecretName(name string) bool {
-	return len(name) > 0 && azureSecretNameValidRegex.MatchString(name)
+	return azureSecretNameValidRegex.MatchString(name)
 }

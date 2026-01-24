@@ -18,6 +18,13 @@ import (
 	secretsantav1alpha1 "github.com/logicIQ/secret-santa/api/v1alpha1"
 )
 
+const (
+	tagKeyCreatedAt        = "secrets.secret-santa.io/created-at"
+	tagKeyGeneratorTypes   = "secrets.secret-santa.io/generator-types"
+	tagKeyTemplateChecksum = "secrets.secret-santa.io/template-checksum"
+	tagKeySourceCR         = "secrets.secret-santa.io/source-cr"
+)
+
 // getGeneratorTypes extracts generator types from the configuration
 func getGeneratorTypes(generators []secretsantav1alpha1.GeneratorConfig) string {
 	if len(generators) == 0 {
@@ -50,6 +57,59 @@ func loadAWSConfig(ctx context.Context, region string) (aws.Config, error) {
 	return config.LoadDefaultConfig(ctx, opts...)
 }
 
+// resolveSecretName resolves the secret name with namespace prefix
+func resolveSecretName(mediaName string, secretSanta *secretsantav1alpha1.SecretSanta, prefix string) string {
+	name := mediaName
+	if name == "" {
+		if secretSanta.Spec.SecretName != "" {
+			name = secretSanta.Spec.SecretName
+		} else {
+			name = secretSanta.Name
+		}
+	}
+	return fmt.Sprintf("%s%s/%s", prefix, secretSanta.Namespace, name)
+}
+
+// createSecretsManagerTags creates tags for AWS Secrets Manager
+func createSecretsManagerTags(secretSanta *secretsantav1alpha1.SecretSanta, enableMetadata bool) []types.Tag {
+	var tags []types.Tag
+	for k, v := range secretSanta.Spec.Labels {
+		tags = append(tags, types.Tag{Key: aws.String(k), Value: aws.String(v)})
+	}
+	for k, v := range secretSanta.Spec.Annotations {
+		tags = append(tags, types.Tag{Key: aws.String(k), Value: aws.String(v)})
+	}
+	if enableMetadata {
+		tags = append(tags,
+			types.Tag{Key: aws.String(tagKeyCreatedAt), Value: aws.String(time.Now().UTC().Format(time.RFC3339))},
+			types.Tag{Key: aws.String(tagKeyGeneratorTypes), Value: aws.String(getGeneratorTypes(secretSanta.Spec.Generators))},
+			types.Tag{Key: aws.String(tagKeyTemplateChecksum), Value: aws.String(calculateTemplateChecksum(secretSanta.Spec.Template))},
+			types.Tag{Key: aws.String(tagKeySourceCR), Value: aws.String(fmt.Sprintf("%s/%s", secretSanta.Namespace, secretSanta.Name))},
+		)
+	}
+	return tags
+}
+
+// createSSMTags creates tags for AWS Systems Manager Parameter Store
+func createSSMTags(secretSanta *secretsantav1alpha1.SecretSanta, enableMetadata bool) []ssm_types.Tag {
+	var tags []ssm_types.Tag
+	for k, v := range secretSanta.Spec.Labels {
+		tags = append(tags, ssm_types.Tag{Key: aws.String(k), Value: aws.String(v)})
+	}
+	for k, v := range secretSanta.Spec.Annotations {
+		tags = append(tags, ssm_types.Tag{Key: aws.String(k), Value: aws.String(v)})
+	}
+	if enableMetadata {
+		tags = append(tags,
+			ssm_types.Tag{Key: aws.String(tagKeyCreatedAt), Value: aws.String(time.Now().UTC().Format(time.RFC3339))},
+			ssm_types.Tag{Key: aws.String(tagKeyGeneratorTypes), Value: aws.String(getGeneratorTypes(secretSanta.Spec.Generators))},
+			ssm_types.Tag{Key: aws.String(tagKeyTemplateChecksum), Value: aws.String(calculateTemplateChecksum(secretSanta.Spec.Template))},
+			ssm_types.Tag{Key: aws.String(tagKeySourceCR), Value: aws.String(fmt.Sprintf("%s/%s", secretSanta.Namespace, secretSanta.Name))},
+		)
+	}
+	return tags
+}
+
 // AWSSecretsManagerMedia stores secrets in AWS Secrets Manager
 type AWSSecretsManagerMedia struct {
 	Region     string
@@ -65,17 +125,7 @@ func (m *AWSSecretsManagerMedia) Store(ctx context.Context, secretSanta *secrets
 
 	client := secretsmanager.NewFromConfig(cfg)
 
-	secretName := m.SecretName
-	if secretName == "" {
-		if secretSanta.Spec.SecretName != "" {
-			secretName = secretSanta.Spec.SecretName
-		} else {
-			secretName = secretSanta.Name
-		}
-	}
-
-	// Add namespace prefix to avoid conflicts
-	secretName = fmt.Sprintf("%s/%s", secretSanta.Namespace, secretName)
+	secretName := resolveSecretName(m.SecretName, secretSanta, "")
 
 	input := &secretsmanager.CreateSecretInput{
 		Name:         aws.String(secretName),
@@ -87,31 +137,7 @@ func (m *AWSSecretsManagerMedia) Store(ctx context.Context, secretSanta *secrets
 		input.KmsKeyId = aws.String(m.KMSKeyId)
 	}
 
-	// Add tags from labels, annotations, and metadata
-	var tags []types.Tag
-	for k, v := range secretSanta.Spec.Labels {
-		tags = append(tags, types.Tag{
-			Key:   aws.String(k),
-			Value: aws.String(v),
-		})
-	}
-	for k, v := range secretSanta.Spec.Annotations {
-		tags = append(tags, types.Tag{
-			Key:   aws.String(k),
-			Value: aws.String(v),
-		})
-	}
-
-	// Add metadata tags only if enabled
-	if enableMetadata {
-		tags = append(tags,
-			types.Tag{Key: aws.String("secrets.secret-santa.io/created-at"), Value: aws.String(time.Now().UTC().Format(time.RFC3339))},
-			types.Tag{Key: aws.String("secrets.secret-santa.io/generator-types"), Value: aws.String(getGeneratorTypes(secretSanta.Spec.Generators))},
-			types.Tag{Key: aws.String("secrets.secret-santa.io/template-checksum"), Value: aws.String(calculateTemplateChecksum(secretSanta.Spec.Template))},
-			types.Tag{Key: aws.String("secrets.secret-santa.io/source-cr"), Value: aws.String(fmt.Sprintf("%s/%s", secretSanta.Namespace, secretSanta.Name))},
-		)
-	}
-
+	tags := createSecretsManagerTags(secretSanta, enableMetadata)
 	if len(tags) > 0 {
 		input.Tags = tags
 	}
@@ -146,42 +172,9 @@ func (m *AWSParameterStoreMedia) Store(ctx context.Context, secretSanta *secrets
 
 	client := ssm.NewFromConfig(cfg)
 
-	paramName := m.ParameterName
-	if paramName == "" {
-		if secretSanta.Spec.SecretName != "" {
-			paramName = secretSanta.Spec.SecretName
-		} else {
-			paramName = secretSanta.Name
-		}
-	}
+	paramName := resolveSecretName(m.ParameterName, secretSanta, "/")
 
-	// Add namespace prefix to avoid conflicts
-	paramName = fmt.Sprintf("/%s/%s", secretSanta.Namespace, paramName)
-
-	// Create tags from labels, annotations, and metadata
-	var tags []ssm_types.Tag
-	for k, v := range secretSanta.Spec.Labels {
-		tags = append(tags, ssm_types.Tag{
-			Key:   aws.String(k),
-			Value: aws.String(v),
-		})
-	}
-	for k, v := range secretSanta.Spec.Annotations {
-		tags = append(tags, ssm_types.Tag{
-			Key:   aws.String(k),
-			Value: aws.String(v),
-		})
-	}
-
-	// Add metadata tags only if enabled
-	if enableMetadata {
-		tags = append(tags,
-			ssm_types.Tag{Key: aws.String("secrets.secret-santa.io/created-at"), Value: aws.String(time.Now().UTC().Format(time.RFC3339))},
-			ssm_types.Tag{Key: aws.String("secrets.secret-santa.io/generator-types"), Value: aws.String(getGeneratorTypes(secretSanta.Spec.Generators))},
-			ssm_types.Tag{Key: aws.String("secrets.secret-santa.io/template-checksum"), Value: aws.String(calculateTemplateChecksum(secretSanta.Spec.Template))},
-			ssm_types.Tag{Key: aws.String("secrets.secret-santa.io/source-cr"), Value: aws.String(fmt.Sprintf("%s/%s", secretSanta.Namespace, secretSanta.Name))},
-		)
-	}
+	tags := createSSMTags(secretSanta, enableMetadata)
 
 	input := &ssm.PutParameterInput{
 		Name:  aws.String(paramName),

@@ -87,7 +87,7 @@ func TestBasicPasswordGeneration(t *testing.T) {
 		}
 	})
 
-	err = wait.PollImmediate(pollInterval, pollTimeout, func() (bool, error) {
+	err = wait.PollUntilContextTimeout(ctx, pollInterval, pollTimeout, true, func(ctx context.Context) (bool, error) {
 		_, err := client.CoreV1().Secrets(namespace).Get(ctx, name, metav1.GetOptions{})
 		if err != nil {
 			t.Logf("Waiting for secret to be created: %v", err)

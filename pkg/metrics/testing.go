@@ -1,5 +1,3 @@
-//go:build test
-
 package metrics
 
 import (
@@ -7,7 +5,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/metrics"
 )
 
-func init() {
-	// Use a separate registry for tests to avoid conflicts
+// SetupTestRegistry configures a separate registry for tests to avoid conflicts
+func SetupTestRegistry() {
 	metrics.Registry = prometheus.NewRegistry()
 }

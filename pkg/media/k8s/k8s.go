@@ -124,5 +124,5 @@ func (m *K8sSecretsMedia) getGeneratorTypes(generators []secretsantav1alpha1.Gen
 // calculateTemplateChecksum creates a SHA256 checksum of the template
 func (m *K8sSecretsMedia) calculateTemplateChecksum(template string) string {
 	hash := sha256.Sum256([]byte(template))
-	return fmt.Sprintf("%x", hash)[:16] // Use first 16 chars for brevity
+	return fmt.Sprintf("%x", hash)
 }

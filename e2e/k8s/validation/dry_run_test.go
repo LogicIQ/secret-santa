@@ -26,6 +26,9 @@ var (
 )
 
 func TestDryRunValidation(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+
 	cfg, err := config.GetConfig()
 	if err != nil {
 		t.Fatalf("Failed to get config: %v", err)
@@ -92,15 +95,15 @@ func TestDryRunValidation(t *testing.T) {
 		},
 	}
 
-	_, err = dynClient.Resource(secretSantaGVR).Namespace(namespace).Create(context.TODO(), secretSanta, metav1.CreateOptions{})
+	_, err = dynClient.Resource(secretSantaGVR).Namespace(namespace).Create(ctx, secretSanta, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("Failed to create SecretSanta: %v", err)
 	}
-	defer dynClient.Resource(secretSantaGVR).Namespace(namespace).Delete(context.TODO(), name, metav1.DeleteOptions{})
+	defer dynClient.Resource(secretSantaGVR).Namespace(namespace).Delete(ctx, name, metav1.DeleteOptions{})
 
 	var finalStatus map[string]interface{}
 	err = wait.PollImmediate(2*time.Second, 60*time.Second, func() (bool, error) {
-		obj, err := dynClient.Resource(secretSantaGVR).Namespace(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+		obj, err := dynClient.Resource(secretSantaGVR).Namespace(namespace).Get(ctx, name, metav1.GetOptions{})
 		if err != nil {
 			return false, err
 		}
@@ -181,7 +184,7 @@ func TestDryRunValidation(t *testing.T) {
 		}
 	}
 
-	_, err = client.CoreV1().Secrets(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+	_, err = client.CoreV1().Secrets(namespace).Get(ctx, name, metav1.GetOptions{})
 	if err == nil {
 		t.Error("Secret should not be created in dry-run mode")
 	}
@@ -190,6 +193,9 @@ func TestDryRunValidation(t *testing.T) {
 }
 
 func TestDryRunValidationError(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+
 	cfg, err := config.GetConfig()
 	if err != nil {
 		t.Fatalf("Failed to get config: %v", err)
@@ -233,14 +239,14 @@ func TestDryRunValidationError(t *testing.T) {
 		},
 	}
 
-	_, err = dynClient.Resource(secretSantaGVR).Namespace(namespace).Create(context.TODO(), secretSanta, metav1.CreateOptions{})
+	_, err = dynClient.Resource(secretSantaGVR).Namespace(namespace).Create(ctx, secretSanta, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("Failed to create SecretSanta: %v", err)
 	}
-	defer dynClient.Resource(secretSantaGVR).Namespace(namespace).Delete(context.TODO(), name, metav1.DeleteOptions{})
+	defer dynClient.Resource(secretSantaGVR).Namespace(namespace).Delete(ctx, name, metav1.DeleteOptions{})
 
 	err = wait.PollImmediate(2*time.Second, 60*time.Second, func() (bool, error) {
-		obj, err := dynClient.Resource(secretSantaGVR).Namespace(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+		obj, err := dynClient.Resource(secretSantaGVR).Namespace(namespace).Get(ctx, name, metav1.GetOptions{})
 		if err != nil {
 			return false, err
 		}

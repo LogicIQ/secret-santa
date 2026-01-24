@@ -26,9 +26,12 @@ jobs:
       run: go version
     
     - name: Run tests
+      id: run-tests
       run: go test -v -race -coverprofile=coverage.out -covermode=atomic ./...
     
     - name: Upload coverage
-      uses: codecov/codecov-action@v3
+      if: steps.run-tests.outcome == 'success'
+      uses: codecov/codecov-action@v4
       with:
-        file: ./coverage.out
+        files: ./coverage.out
+        fail_ci_if_error: false

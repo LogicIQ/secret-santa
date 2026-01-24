@@ -93,11 +93,12 @@ func (g *LocallySignedCertGenerator) Generate(config map[string]interface{}) (ma
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate serial number: %w", err)
 	}
+	now := time.Now().UTC()
 	template := x509.Certificate{
 		SerialNumber:          serialNumber,
 		Subject:               csr.Subject,
-		NotBefore:             time.Now(),
-		NotAfter:              time.Now().Add(time.Duration(validityHours) * time.Hour),
+		NotBefore:             now,
+		NotAfter:              now.Add(time.Duration(validityHours) * time.Hour),
 		KeyUsage:              x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
 		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
 		DNSNames:              csr.DNSNames,

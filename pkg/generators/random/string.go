@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"math/big"
 	"strings"
-	"time"
 )
 
 type StringGenerator struct{}
@@ -49,8 +48,10 @@ func (g *StringGenerator) Generate(config map[string]interface{}) (map[string]st
 	}
 
 	result := make([]byte, length)
-	for i := range result {
-		n, err := rand.Int(rand.Reader, big.NewInt(int64(len(charsetStr))))
+	charsetLen := big.NewInt(int64(len(charsetStr)))
+
+	for i := 0; i < length; i++ {
+		n, err := rand.Int(rand.Reader, charsetLen)
 		if err != nil {
 			return nil, fmt.Errorf("failed to generate random character: %w", err)
 		}
@@ -58,8 +59,7 @@ func (g *StringGenerator) Generate(config map[string]interface{}) (map[string]st
 	}
 
 	return map[string]string{
-		"value":       string(result),
-		"charset":     charsetStr,
-		"generatedAt": time.Now().UTC().Format(time.RFC3339),
+		"value":   string(result),
+		"charset": charsetStr,
 	}, nil
 }
