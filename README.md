@@ -2,6 +2,8 @@
 
 ![Secret Santa](https://raw.githubusercontent.com/LogicIQ/secret-santa/main/docs/images/secret-santa.webp)
 
+[![Go Report Card](https://goreportcard.com/badge/github.com/logicIQ/secret-santa)](https://goreportcard.com/report/github.com/logicIQ/secret-santa)
+
 Kubernetes operator for generating secrets with templates and storing them in multiple destinations. 
 
 It plays well with Kubernetes External Secrets too.
