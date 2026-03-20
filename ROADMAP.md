@@ -7,32 +7,21 @@
 - **AWS Secrets Manager** - AWS managed secrets service
 - **AWS Parameter Store** - AWS Systems Manager parameters
 - **GCP Secret Manager** - Google Cloud secret management
+- **Azure Key Vault** - Azure managed secrets service
+- **HashiCorp Vault** - KV v1/v2 with token and Kubernetes auth
 
 ### Core Features
 - Template-based secret generation
 - Multiple generator types (random, TLS, crypto)
 - Create-once workflow
 - Multi-destination storage
-- Cloud authentication (IAM roles, workload identity)
+- Cloud authentication (IAM roles, workload identity, managed identity)
+- Dry-run mode with masked output and template validation
+- Automatic secret metadata for traceability
 
 ## Features to Implement
 
-### Core Features
-
-- **Dry Run Support** - Per-CR dry run capabilities
-  - Template validation without secret creation
-  - Preview generated values (with masking options)
-  - Multiple output formats (YAML, JSON, text)
-  - CI/CD pipeline integration
-  - Validate-only mode for configuration testing
-
 ### Media Storage Providers
-
-- **Azure Key Vault** - Complete big 3 cloud providers
-  - Managed identity authentication
-  - Service principal support
-  - Custom vault URL configuration
-  - Secret versioning support
 
 - **Oracle Cloud Infrastructure (OCI) Vault**
   - Instance principal authentication
@@ -48,12 +37,6 @@
   - IAM authentication
   - Secret groups support
   - Hybrid cloud integration
-
-- **HashiCorp Vault** (Static secrets only)
-  - Token authentication
-  - AppRole authentication
-  - KV v1/v2 support
-  - Note: Dynamic secrets remain out of scope
 
 - **DigitalOcean Spaces** (Object storage for secrets)
 - **Vultr Object Storage**
@@ -136,9 +119,9 @@
 5. API stability - Mature, stable APIs
 
 ### Priority Scoring
-- **High**: AWS, GCP, Azure (core clouds)
+- **High**: AWS, GCP, Azure, HashiCorp Vault (shipped)
 - **Medium-High**: OCI, Alibaba (enterprise/regional)
-- **Medium**: IBM, Vault static (specialized)
+- **Medium**: IBM (specialized)
 - **Low-Medium**: DigitalOcean, Vultr (developer platforms)
 
 ## Community Input
