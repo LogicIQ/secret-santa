@@ -9,5 +9,5 @@ import (
 var secretSantaGVR = schema.GroupVersionResource{
 	Group:    "secrets.secret-santa.io",
 	Version:  "v1alpha1",
-	Resource: "secretsantas",
+	Resource: "secretsanta",
 }

@@ -25,6 +25,7 @@ import (
 	"github.com/logicIQ/secret-santa/pkg/media/aws"
 	"github.com/logicIQ/secret-santa/pkg/media/gcp"
 	"github.com/logicIQ/secret-santa/pkg/media/k8s"
+	vaultmedia "github.com/logicIQ/secret-santa/pkg/media/vault"
 	tmplpkg "github.com/logicIQ/secret-santa/pkg/template"
 	"github.com/logicIQ/secret-santa/pkg/validation"
 )
@@ -256,6 +257,21 @@ func (r *SecretSantaReconciler) createMedia(secretSanta *secretsantav1alpha1.Sec
 			ProjectID:       projectID,
 			SecretName:      secretName,
 			CredentialsFile: credentialsFile,
+		}, nil
+	case "hashicorp-vault":
+		address, _ := config["address"].(string)
+		path, _ := config["path"].(string)
+		mountPath, _ := config["mount_path"].(string)
+		token, _ := config["token"].(string)
+		role, _ := config["role"].(string)
+		authMethod, _ := config["auth_method"].(string)
+		return &vaultmedia.HashiCorpVaultMedia{
+			Address:    address,
+			Path:       path,
+			MountPath:  mountPath,
+			Token:      token,
+			Role:       role,
+			AuthMethod: authMethod,
 		}, nil
 	default:
 		return nil, fmt.Errorf("unsupported media type: %s", sanitizeLogValue(secretSanta.Spec.Media.Type))

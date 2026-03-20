@@ -46,19 +46,14 @@ tasks:
       - docker build -t logiciq/secret-santa:latest .
       - docker push logiciq/secret-santa:latest
 
-  e2e:run:
-    desc: Run complete e2e test suite
+  e2e:setup:
+    desc: Create cluster, deploy operator and install Vault (no tests)
     cmds:
-      # Setup
       - go install sigs.k8s.io/kind@latest
       - go install sigs.k8s.io/controller-tools/cmd/controller-gen@latest
       - kind create cluster --config=e2e/k8s/kind-config.yaml --name=secret-santa-e2e || kind get clusters | grep -q secret-santa-e2e
       - kubectl config use-context kind-secret-santa-e2e
-      
-      # Generate CRDs
       - task: go:manifests
-      
-      # Deploy
       - kubectl delete deployment secret-santa-controller -n secret-santa-system --ignore-not-found=true
       - task: docker:build
       - kind load docker-image secret-santa:latest --name=secret-santa-e2e
@@ -67,8 +62,23 @@ tasks:
       - kubectl apply -f config/rbac/
       - kubectl apply -f config/manager/
       - kubectl wait --for=condition=available --timeout=180s deployment/secret-santa-controller -n secret-santa-system
-      
-      # Test
+      - helm repo add hashicorp https://helm.releases.hashicorp.com --force-update
+      - helm repo update
+      - |
+        helm upgrade --install vault hashicorp/vault \
+          --namespace vault --create-namespace \
+          --set server.dev.enabled=true \
+          --set server.dev.devRootToken=root \
+          --set injector.enabled=false \
+          --wait --timeout 120s
+      - kubectl wait pod -n vault -l app.kubernetes.io/name=vault --for=condition=Ready --timeout=60s
+      - kubectl exec -n vault vault-0 -- env VAULT_TOKEN=root vault secrets enable -path=secret kv-v2 || true
+
+  e2e:run:
+    desc: Run complete e2e test suite
+    deps:
+      - e2e:setup
+    cmds:
       - cd e2e/k8s && go mod tidy && go test -v ./... -tags=e2e
 
   e2e:cleanup:

@@ -10,10 +10,10 @@ It plays well with Kubernetes External Secrets too.
 
 ## Features
 
-- **Multiple Storage**: Kubernetes secrets, AWS Secrets Manager, AWS Parameter Store, Azure Key Vault, GCP Secret Manager
+- **Multiple Storage**: Kubernetes secrets, AWS Secrets Manager, AWS Parameter Store, Azure Key Vault, GCP Secret Manager, HashiCorp Vault
 - **Template Engine**: Go templates with crypto, random, and TLS generators
 - **Create-Once**: Secrets generated once and never modified
-- **Cloud Integration**: AWS, Azure, and GCP authentication support
+- **Cloud Integration**: AWS, Azure, GCP, and HashiCorp Vault authentication support
 - **Dry-Run Mode**: Validate templates and preview masked output without creating secrets
 - **Metadata**: Automatic metadata for traceability and observability
 
@@ -66,6 +66,25 @@ helm install secret-santa logiciq/secret-santa \
   --set azure.tenantId=00000000-0000-0000-0000-000000000000 \
   --set azure.credentials.useManagedIdentity=true \
   --set serviceAccount.annotations."azure\.workload\.identity/client-id"=00000000-0000-0000-0000-000000000000
+```
+
+### HashiCorp Vault Setup (Optional)
+
+For HashiCorp Vault:
+
+```bash
+# With Kubernetes auth (recommended in-cluster)
+helm install secret-santa logiciq/secret-santa \
+  --set vault.enabled=true \
+  --set vault.address=https://vault.example.com \
+  --set vault.authMethod=kubernetes \
+  --set vault.role=secret-santa
+
+# With token auth
+helm install secret-santa logiciq/secret-santa \
+  --set vault.enabled=true \
+  --set vault.address=https://vault.example.com \
+  --set vault.token=<vault-token>
 ```
 
 ### GCP Setup (Optional)
@@ -267,6 +286,34 @@ spec:
       secret_name: app-credentials
 ```
 
+### HashiCorp Vault
+
+```yaml
+apiVersion: secrets.secret-santa.io/v1alpha1
+kind: SecretSanta
+metadata:
+  name: vault-secret
+spec:
+  template: |
+    {
+      "username": "admin",
+      "password": "{{ .pass.password }}"
+    }
+  generators:
+    - name: pass
+      type: random_password
+      config:
+        length: 24
+  media:
+    type: hashicorp-vault
+    config:
+      address: https://vault.example.com
+      mount_path: secret
+      path: myapp/credentials
+      auth_method: kubernetes
+      role: secret-santa
+```
+
 ## Storage Destinations
 
 ### Kubernetes Secrets (Default)
@@ -327,6 +374,20 @@ media:
     credentials_file: /path/to/key.json  # Optional - uses workload identity if empty
 ```
 
+### HashiCorp Vault
+
+```yaml
+media:
+  type: hashicorp-vault
+  config:
+    address: https://vault.example.com   # Optional - uses VAULT_ADDR env if empty
+    mount_path: secret                   # Optional - defaults to "secret"
+    path: myapp/credentials              # Optional - defaults to namespace/name
+    auth_method: kubernetes              # Optional - "kubernetes" or omit for token
+    role: secret-santa                   # Optional - Vault role for kubernetes auth
+    token: <vault-token>                 # Optional - use for token auth
+```
+
 ## Generators
 
 ### Random
@@ -384,6 +445,15 @@ gcp:
     # existingSecret: gcp-service-account-key
     # existingSecretKey: key.json
 
+vault:
+  enabled: true
+  address: https://vault.example.com
+  authMethod: kubernetes
+  role: secret-santa
+  # OR for token auth:
+  # authMethod: ""
+  # token: <vault-token>
+
 serviceAccount:
   annotations:
     eks.amazonaws.com/role-arn: arn:aws:iam::123456789012:role/secret-santa
@@ -404,6 +474,8 @@ AZURE_TENANT_ID=00000000-0000-0000-0000-000000000000
 AZURE_CLIENT_ID=00000000-0000-0000-0000-000000000000
 GOOGLE_APPLICATION_CREDENTIALS=/path/to/service-account.json
 GCP_PROJECT_ID=my-gcp-project
+VAULT_ADDR=https://vault.example.com
+VAULT_TOKEN=<vault-token>
 ```
 
 ## Dry-Run and Validation
@@ -457,7 +529,7 @@ Automatic metadata is added to all generated secrets for traceability:
 - `secrets.secret-santa.io/template-checksum`: Template checksum
 - `secrets.secret-santa.io/source-cr`: Source SecretSanta reference
 
-### AWS/Azure/GCP (Tags/Labels)
+### AWS/Azure/GCP/Vault (Tags/Labels/Metadata)
 Same metadata keys with platform-specific formatting.
 
 ### Disable Metadata

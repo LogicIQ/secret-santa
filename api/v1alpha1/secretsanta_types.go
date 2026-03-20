@@ -22,7 +22,7 @@ type MediaConfig struct {
 	// Supported types: k8s, aws-secrets-manager, aws-parameter-store, azure-key-vault, gcp-secret-manager
 	// +kubebuilder:validation:MinLength=1
 	// amazonq-ignore-next-line
-	// +kubebuilder:validation:Enum=k8s;aws-secrets-manager;aws-parameter-store;azure-key-vault;gcp-secret-manager
+	// +kubebuilder:validation:Enum=k8s;aws-secrets-manager;aws-parameter-store;azure-key-vault;gcp-secret-manager;hashicorp-vault
 	Type string `json:"type"`
 	// Config contains storage backend specific configuration parameters
 	Config *runtime.RawExtension `json:"config,omitempty"`

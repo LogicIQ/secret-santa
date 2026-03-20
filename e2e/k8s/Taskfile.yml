@@ -7,11 +7,21 @@ tasks:
       - go mod tidy
 
   test:
-    desc: Run e2e tests only
+    desc: Run all e2e tests (requires cluster + Vault already running)
     deps:
       - deps
     cmds:
       - go test -v ./... -tags=e2e
+
+  vault-test:
+    desc: Run Vault e2e tests only (requires cluster + Vault already running)
+    deps:
+      - deps
+    cmds:
+      - kubectl port-forward -n vault svc/vault 8200:8200 &
+      - sleep 2
+      - defer: pkill -f 'kubectl port-forward -n vault' || true
+      - VAULT_ADDR=http://127.0.0.1:8200 VAULT_TOKEN=root go test -v ./vault/... -tags=e2e -timeout 5m
 
   cleanup:
     desc: Cleanup e2e environment

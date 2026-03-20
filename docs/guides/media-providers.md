@@ -365,6 +365,110 @@ spec:
 
 **Note**: Each SecretSanta resource generates independently. For true multi-destination storage, consider using external tools or custom controllers.
 
+## HashiCorp Vault
+
+Store secrets in HashiCorp Vault's KV v2 secrets engine.
+
+### Configuration
+
+```yaml
+media:
+  type: hashicorp-vault
+  config:
+    address: "https://vault.example.com"   # Vault address (optional, uses VAULT_ADDR env)
+    mount_path: "secret"                   # KV v2 mount path (default: "secret")
+    path: "myapp/credentials"              # Secret path (optional, defaults to namespace/name)
+    auth_method: "kubernetes"              # Auth method (optional)
+    role: "secret-santa"                   # Vault role for kubernetes auth (optional)
+    token: "<vault-token>"                 # Vault token for token auth (optional)
+```
+
+### Authentication
+
+#### Kubernetes Auth - Recommended
+
+Uses the pod's service account token to authenticate with Vault:
+
+```bash
+helm upgrade secret-santa logiciq/secret-santa \
+  --set vault.enabled=true \
+  --set vault.address=https://vault.example.com \
+  --set vault.authMethod=kubernetes \
+  --set vault.role=secret-santa
+```
+
+**Required Vault Configuration**:
+```bash
+# Enable kubernetes auth
+vault auth enable kubernetes
+
+# Configure kubernetes auth
+vault write auth/kubernetes/config \
+  kubernetes_host="https://kubernetes.default.svc"
+
+# Create policy
+vault policy write secret-santa - <<EOF
+path "secret/data/*" {
+  capabilities = ["create", "read", "update"]
+}
+path "secret/metadata/*" {
+  capabilities = ["read"]
+}
+EOF
+
+# Create role
+vault write auth/kubernetes/role/secret-santa \
+  bound_service_account_names=secret-santa \
+  bound_service_account_namespaces=default \
+  policies=secret-santa \
+  ttl=1h
+```
+
+#### Token Auth
+
+```bash
+helm upgrade secret-santa logiciq/secret-santa \
+  --set vault.enabled=true \
+  --set vault.address=https://vault.example.com \
+  --set vault.token=<vault-token>
+```
+
+Or via environment variable:
+```bash
+export VAULT_ADDR=https://vault.example.com
+export VAULT_TOKEN=<vault-token>
+```
+
+### Example
+
+```yaml
+apiVersion: secrets.secret-santa.io/v1alpha1
+kind: SecretSanta
+metadata:
+  name: database-credentials
+spec:
+  template: |
+    {
+      "username": "admin",
+      "password": "{{ .pass.password }}",
+      "host": "db.example.com",
+      "port": 5432
+    }
+  generators:
+    - name: pass
+      type: random_password
+      config:
+        length: 32
+  media:
+    type: hashicorp-vault
+    config:
+      address: https://vault.example.com
+      mount_path: secret
+      path: myapp/database
+      auth_method: kubernetes
+      role: secret-santa
+```
+
 ## Best Practices
 
 ### Security
