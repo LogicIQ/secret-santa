@@ -27,6 +27,7 @@ This section contains practical examples of using Secret Santa for common use ca
 - [AWS Secrets Manager](aws-secrets-manager.md) - Store secrets in AWS Secrets Manager
 - [AWS Parameter Store](aws-parameter-store.md) - Store connection strings in Parameter Store
 - [GCP Secret Manager](gcp-secret-manager.md) - Store secrets in Google Cloud Secret Manager
+- [HashiCorp Vault](vault.md) - Store secrets in HashiCorp Vault KV v2
 
 ## Advanced Use Cases
 
